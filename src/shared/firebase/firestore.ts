@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   getFirestore,
   query,
@@ -169,21 +170,31 @@ export async function pushSharedFamilyData(
       continue
     }
 
+    const familyRef = getFamilyRef(cloudFamilyId)
+    const existingFamilySnapshot = await getDoc(familyRef)
+    const existingFamily = existingFamilySnapshot.exists()
+      ? (existingFamilySnapshot.data() as CloudFamilyDoc)
+      : null
+
     const memberEmails = Array.from(
-      new Set([normalizedEmail, ...(bundle.family.memberEmails ?? []).map(normalizeEmail)]),
+      new Set([
+        normalizedEmail,
+        ...(existingFamily?.memberEmails ?? []).map(normalizeEmail),
+        ...(bundle.family.memberEmails ?? []).map(normalizeEmail),
+      ]),
     )
 
     const familyDoc: CloudFamilyDoc = {
       cloudFamilyId,
       name: bundle.family.name,
       memberEmails,
-      ownerUid: uid,
-      createdAt: bundle.family.createdAt,
+      ownerUid: existingFamily?.ownerUid ?? uid,
+      createdAt: existingFamily?.createdAt ?? bundle.family.createdAt,
       updatedAt: bundle.family.updatedAt,
     }
 
     await writeBatch(db)
-      .set(getFamilyRef(cloudFamilyId), familyDoc, { merge: true })
+      .set(familyRef, familyDoc, { merge: true })
       .commit()
 
     totalWrites += 1

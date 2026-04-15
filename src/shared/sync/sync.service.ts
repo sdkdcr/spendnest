@@ -247,8 +247,21 @@ export async function syncUserData(
   uid: string,
   email: string,
 ): Promise<{ pulled: number; pushed: number }> {
-  const pushSummary = await pushLocalDataToCloud(uid, email)
-  const pullSummary = await pullCloudDataToLocal(email)
+  let pushSummary: PushSummary
+  try {
+    pushSummary = await pushLocalDataToCloud(uid, email)
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : 'Unknown push error'
+    throw new Error(`Cloud push failed: ${detail}`)
+  }
+
+  let pullSummary: PullSummary
+  try {
+    pullSummary = await pullCloudDataToLocal(email)
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : 'Unknown pull error'
+    throw new Error(`Cloud pull failed: ${detail}`)
+  }
 
   return {
     pushed: pushSummary.pushed,

@@ -90,24 +90,37 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.email != null;
     }
 
-    function isFamilyMember(familyId) {
+    function isRequesterInIncomingMembers() {
+      return isSignedIn()
+        && request.resource.data.memberEmails is list
+        && request.auth.token.email in request.resource.data.memberEmails;
+    }
+
+    function isRequesterInExistingFamily(familyId) {
       return isSignedIn()
         && request.auth.token.email in get(/databases/$(database)/documents/families/$(familyId)).data.memberEmails;
     }
 
     match /families/{familyId} {
-      allow read, write: if isFamilyMember(familyId);
+      // Avoid recursive get() for family document read by using resource.data.
+      allow read: if isSignedIn()
+        && resource.data.memberEmails is list
+        && request.auth.token.email in resource.data.memberEmails;
+      allow create: if isRequesterInIncomingMembers();
+      allow update, delete: if isSignedIn()
+        && resource.data.memberEmails is list
+        && request.auth.token.email in resource.data.memberEmails;
 
       match /persons/{personId} {
-        allow read, write: if isFamilyMember(familyId);
+        allow read, write: if isRequesterInExistingFamily(familyId);
       }
 
       match /spendTemplates/{templateId} {
-        allow read, write: if isFamilyMember(familyId);
+        allow read, write: if isRequesterInExistingFamily(familyId);
       }
 
       match /monthlySpendEntries/{entryId} {
-        allow read, write: if isFamilyMember(familyId);
+        allow read, write: if isRequesterInExistingFamily(familyId);
       }
     }
   }
