@@ -7,6 +7,7 @@ interface SpendTemplateFormProps {
   title: string
   submitLabel: string
   disabled?: boolean
+  hideTitle?: boolean
   persons: Person[]
   initialDraft?: SpendTemplateDraft
   onSubmit: (draft: SpendTemplateDraft) => Promise<void>
@@ -35,6 +36,7 @@ export function SpendTemplateForm({
   title,
   submitLabel,
   disabled = false,
+  hideTitle = false,
   persons,
   initialDraft,
   onSubmit,
@@ -88,8 +90,11 @@ export function SpendTemplateForm({
   }
 
   return (
-    <form className="spend-template-form" onSubmit={handleSubmit}>
-      <h3>{title}</h3>
+    <form
+      className={hideTitle ? 'spend-template-form spend-template-form-modal' : 'spend-template-form'}
+      onSubmit={handleSubmit}
+    >
+      {!hideTitle ? <h3>{title}</h3> : null}
 
       <label htmlFor={`${title}-person`}>Person Tag (Optional)</label>
       <select
@@ -126,9 +131,11 @@ export function SpendTemplateForm({
         className="families-input"
         value={draft.type}
         onChange={(event) => {
+          const value = event.currentTarget.value
+
           setDraft((currentDraft) => ({
             ...currentDraft,
-            type: event.currentTarget.value,
+            type: value,
           }))
         }}
         placeholder="e.g. Utility"
@@ -141,9 +148,11 @@ export function SpendTemplateForm({
         className="families-input"
         value={draft.name}
         onChange={(event) => {
+          const value = event.currentTarget.value
+
           setDraft((currentDraft) => ({
             ...currentDraft,
-            name: event.currentTarget.value,
+            name: value,
           }))
         }}
         placeholder="e.g. Electricity Bill"
@@ -155,9 +164,11 @@ export function SpendTemplateForm({
         id={`${title}-frequency`}
         value={draft.frequency}
         onChange={(event) => {
+          const value = event.currentTarget.value as SpendFrequency
+
           setDraft((currentDraft) => ({
             ...currentDraft,
-            frequency: event.currentTarget.value as SpendFrequency,
+            frequency: value,
           }))
         }}
         disabled={disabled || isSubmitting}
@@ -178,9 +189,11 @@ export function SpendTemplateForm({
         step="0.01"
         value={draft.cost}
         onChange={(event) => {
+          const value = Number(event.currentTarget.value)
+
           setDraft((currentDraft) => ({
             ...currentDraft,
-            cost: Number(event.currentTarget.value),
+            cost: value,
           }))
         }}
         disabled={disabled || isSubmitting}
@@ -192,9 +205,11 @@ export function SpendTemplateForm({
         className="families-input"
         value={draft.quantity}
         onChange={(event) => {
+          const value = event.currentTarget.value
+
           setDraft((currentDraft) => ({
             ...currentDraft,
-            quantity: event.currentTarget.value,
+            quantity: value,
           }))
         }}
         placeholder="e.g. 1 month / 50 L"

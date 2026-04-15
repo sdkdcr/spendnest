@@ -33,6 +33,9 @@ export function AppShell() {
   const selectedMonthKey = useAppStore((state) => state.selectedMonthKey)
   const setSelectedMonthKey = useAppStore((state) => state.setSelectedMonthKey)
   const themeMode = useAppStore((state) => state.themeMode)
+  const firebaseEnabled = useAppStore((state) => state.firebaseEnabled)
+  const authReady = useAppStore((state) => state.authReady)
+  const authUser = useAppStore((state) => state.authUser)
   const [selectedFamilyName, setSelectedFamilyName] = useState<string | null>(null)
   const monthPickerRef = useRef<HTMLInputElement | null>(null)
 
@@ -76,6 +79,14 @@ export function AppShell() {
 
   const currentMonthKey = new Date().toISOString().slice(0, 7)
   const isCurrentMonthSelected = selectedMonthKey === currentMonthKey
+  const authSummary = !firebaseEnabled
+    ? 'Local mode'
+    : !authReady
+      ? 'Checking session...'
+      : authUser
+        ? authUser.displayName ?? authUser.email ?? authUser.uid
+        : 'Not signed in'
+  const authDetail = authUser?.displayName && authUser.email ? authUser.email : null
 
   function openMonthPicker() {
     const input = monthPickerRef.current
@@ -137,27 +148,34 @@ export function AppShell() {
               aria-hidden="true"
             />
           </div>
-          <p className="app-family">
-            Family: {selectedFamilyName ?? 'Not selected'}
-          </p>
         </div>
       </header>
 
       <div className="app-layout">
-        <nav className="app-nav" aria-label="Primary">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              className={({ isActive }) =>
-                isActive ? 'nav-link nav-link-active' : 'nav-link'
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
+        <aside className="app-nav">
+          <div className="app-nav-overview">
+            <p className="app-nav-kicker">Account</p>
+            <p className="app-nav-user">{authSummary}</p>
+            {authDetail && <p className="app-nav-detail">{authDetail}</p>}
+            <p className="app-nav-family">Family: {selectedFamilyName ?? 'Not selected'}</p>
+            <p className="app-nav-month">Month: {formatMonthLabel(selectedMonthKey)}</p>
+          </div>
+
+          <nav className="app-nav-links" aria-label="Primary">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === '/'}
+                className={({ isActive }) =>
+                  isActive ? 'nav-link nav-link-active' : 'nav-link'
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+        </aside>
 
         <main className="app-content">
           <Outlet />

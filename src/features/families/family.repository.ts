@@ -1,5 +1,6 @@
 import { appDb } from '../../shared/db/appDb'
 import type { Family } from '../../shared/domain/types'
+import { requestAutoSync } from '../../shared/sync/auto-sync'
 
 function nowIso(): string {
   return new Date().toISOString()
@@ -18,6 +19,7 @@ export async function createFamily(name: string): Promise<Family> {
   }
 
   const id = await appDb.families.add(nextFamily)
+  requestAutoSync()
 
   return {
     ...nextFamily,
@@ -33,6 +35,7 @@ export async function renameFamily(
     name,
     updatedAt: nowIso(),
   })
+  requestAutoSync()
 }
 
 export async function deleteFamily(familyId: number): Promise<void> {
@@ -49,4 +52,5 @@ export async function deleteFamily(familyId: number): Promise<void> {
       await appDb.families.delete(familyId)
     },
   )
+  requestAutoSync()
 }

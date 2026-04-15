@@ -1,5 +1,6 @@
 import { ZodError } from 'zod'
 import { appDb } from '../../shared/db/appDb'
+import { requestAutoSync } from '../../shared/sync/auto-sync'
 import { backupPayloadSchema, type BackupPayload } from './backup.schema'
 
 function formatValidationError(error: ZodError): string {
@@ -83,6 +84,7 @@ export async function restoreBackup(payload: BackupPayload): Promise<void> {
       }
     },
   )
+  requestAutoSync()
 }
 
 export async function exportBackupFile(): Promise<void> {

@@ -1,5 +1,6 @@
 import { appDb } from '../../shared/db/appDb'
 import type { SpendFrequency, SpendTemplate } from '../../shared/domain/types'
+import { requestAutoSync } from '../../shared/sync/auto-sync'
 
 function nowIso(): string {
   return new Date().toISOString()
@@ -46,6 +47,7 @@ export async function createSpendTemplate(
   }
 
   const id = await appDb.spendTemplates.add(nextTemplate)
+  requestAutoSync()
 
   return {
     ...nextTemplate,
@@ -68,6 +70,7 @@ export async function updateSpendTemplate(
     deductionDayOfMonth: draft.deductionDayOfMonth,
     updatedAt: nowIso(),
   })
+  requestAutoSync()
 }
 
 export async function deleteSpendTemplate(templateId: number): Promise<void> {
@@ -80,4 +83,5 @@ export async function deleteSpendTemplate(templateId: number): Promise<void> {
       await appDb.spendTemplates.delete(templateId)
     },
   )
+  requestAutoSync()
 }

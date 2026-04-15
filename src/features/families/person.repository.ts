@@ -1,5 +1,6 @@
 import { appDb } from '../../shared/db/appDb'
 import type { Person } from '../../shared/domain/types'
+import { requestAutoSync } from '../../shared/sync/auto-sync'
 
 function nowIso(): string {
   return new Date().toISOString()
@@ -26,6 +27,7 @@ export async function createPerson(
   }
 
   const id = await appDb.persons.add(nextPerson)
+  requestAutoSync()
 
   return {
     ...nextPerson,
@@ -38,6 +40,7 @@ export async function renamePerson(personId: number, name: string): Promise<void
     name,
     updatedAt: nowIso(),
   })
+  requestAutoSync()
 }
 
 export async function deletePerson(personId: number): Promise<void> {
@@ -60,4 +63,5 @@ export async function deletePerson(personId: number): Promise<void> {
       await appDb.persons.delete(personId)
     },
   )
+  requestAutoSync()
 }

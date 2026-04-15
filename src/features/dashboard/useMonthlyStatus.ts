@@ -3,6 +3,7 @@ import type { MonthlySpendEntry, MonthlySpendStatus } from '../../shared/domain/
 import {
   applyEmiAutoStatus,
   listMonthlyEntries,
+  updateMonthlyEntryDetails,
   updateMonthlyEntryStatus,
 } from './monthly-status.repository'
 
@@ -80,10 +81,41 @@ export function useMonthlyStatus(
     }
   }
 
+  async function updateEntryDetails(
+    entryId: number,
+    patch: Pick<MonthlySpendEntry, 'cost' | 'quantity'>,
+  ): Promise<void> {
+    setErrorMessage(null)
+
+    try {
+      await updateMonthlyEntryDetails(entryId, {
+        cost: patch.cost,
+        quantity: patch.quantity,
+      })
+
+      setEntries((currentEntries) =>
+        currentEntries.map((entry) => {
+          if (entry.id !== entryId) {
+            return entry
+          }
+
+          return {
+            ...entry,
+            cost: patch.cost,
+            quantity: patch.quantity,
+          }
+        }),
+      )
+    } catch {
+      setErrorMessage('Unable to update entry details right now.')
+    }
+  }
+
   return {
     entries,
     isLoading,
     errorMessage,
     setEntryStatus,
+    updateEntryDetails,
   }
 }

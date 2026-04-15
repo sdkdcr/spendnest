@@ -69,13 +69,6 @@
   opacity: 0;
 }
 
-.app-family {
-  margin: 0;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
 .app-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -83,10 +76,47 @@
 }
 
 .app-nav {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 0.7rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.app-nav-overview {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.app-nav-kicker {
+  margin: 0;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.app-nav-user {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.app-nav-detail,
+.app-nav-family,
+.app-nav-month {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+
+.app-nav-links {
   display: flex;
   gap: 0.5rem;
   overflow-x: auto;
-  padding: 0.15rem 0;
+  padding: 0.05rem 0;
   scrollbar-width: thin;
 }
 
@@ -95,9 +125,12 @@
     position: sticky;
     top: 0;
     z-index: 20;
-    padding: 0.55rem 0 0.45rem;
+    padding: 0.55rem;
     background: var(--bg);
-    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    box-shadow: none;
   }
 }
 
@@ -148,14 +181,26 @@
   }
 
   .app-nav {
-    flex-direction: column;
     position: sticky;
     top: 0.85rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+  }
+
+  .app-nav-links {
+    flex-direction: column;
     overflow: visible;
   }
 
+  .app-nav-overview {
+    padding-bottom: 0.45rem;
+    border-bottom: 1px solid var(--border);
+  }
+
   .nav-link {
-    border-radius: 12px;
-    padding: 0.6rem 0.8rem;
+    border-radius: 10px;
+    padding: 0.58rem 0.76rem;
   }
 }

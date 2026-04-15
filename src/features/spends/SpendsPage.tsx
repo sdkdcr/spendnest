@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { SpendTemplate } from '../../shared/domain/types'
 import { useAppStore } from '../../shared/state/useAppStore'
+import { Modal } from '../../shared/ui/Modal'
 import { SpendTemplateForm } from './SpendTemplateForm'
 import { SpendTemplateList } from './SpendTemplateList'
 import type { SpendTemplateDraft } from './spend-template.repository'
@@ -34,6 +35,7 @@ export function SpendsPage() {
   } = useSpendTemplates(selectedFamilyId)
 
   const [editingTemplateId, setEditingTemplateId] = useState<number | null>(null)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
   const personNamesById = useMemo(() => {
     return familyPersons.reduce<Record<number, string>>((acc, person) => {
@@ -57,6 +59,7 @@ export function SpendsPage() {
 
   async function handleCreateTemplate(draft: SpendTemplateDraft) {
     await createSpendTemplate(draft)
+    setIsCreateModalOpen(false)
   }
 
   async function handleUpdateTemplate(draft: SpendTemplateDraft) {
@@ -100,26 +103,59 @@ export function SpendsPage() {
         </p>
       ) : (
         <>
-          <SpendTemplateForm
-            key="create-template-form"
-            title="Create Spend Template"
-            submitLabel="Add Template"
-            persons={familyPersons}
-            onSubmit={handleCreateTemplate}
-          />
+          <div className="spend-template-toolbar">
+            <button
+              className="families-button families-button-primary"
+              type="button"
+              onClick={() => {
+                setIsCreateModalOpen(true)
+              }}
+            >
+              Add Spend Template
+            </button>
+          </div>
+
+          {isCreateModalOpen ? (
+            <Modal
+              title="Create Spend Template"
+              onClose={() => {
+                setIsCreateModalOpen(false)
+              }}
+            >
+              <SpendTemplateForm
+                key="create-template-form"
+                title="Create Spend Template"
+                submitLabel="Add Template"
+                hideTitle
+                persons={familyPersons}
+                onSubmit={handleCreateTemplate}
+                onCancel={() => {
+                  setIsCreateModalOpen(false)
+                }}
+              />
+            </Modal>
+          ) : null}
 
           {editingTemplate ? (
-            <SpendTemplateForm
-              key={`edit-template-${editingTemplate.id ?? 'unknown'}`}
+            <Modal
               title="Edit Spend Template"
-              submitLabel="Save Changes"
-              persons={familyPersons}
-              initialDraft={toDraft(editingTemplate)}
-              onSubmit={handleUpdateTemplate}
-              onCancel={() => {
+              onClose={() => {
                 setEditingTemplateId(null)
               }}
-            />
+            >
+              <SpendTemplateForm
+                key={`edit-template-${editingTemplate.id ?? 'unknown'}`}
+                title="Edit Spend Template"
+                submitLabel="Save Changes"
+                hideTitle
+                persons={familyPersons}
+                initialDraft={toDraft(editingTemplate)}
+                onSubmit={handleUpdateTemplate}
+                onCancel={() => {
+                  setEditingTemplateId(null)
+                }}
+              />
+            </Modal>
           ) : null}
 
           {errorMessage ? <p className="families-error">{errorMessage}</p> : null}

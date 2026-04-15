@@ -1,4 +1,5 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
+import { getCategoryColor } from './category-colors'
 
 export interface CategoryTotal {
   type: string
@@ -7,19 +8,10 @@ export interface CategoryTotal {
 
 interface CategoryPieChartProps {
   data: CategoryTotal[]
+  colorByType: Record<string, string>
 }
 
-const sliceColors = [
-  '#2458d3',
-  '#1d8a5d',
-  '#cc6b1a',
-  '#8e4ec6',
-  '#ce3d75',
-  '#287b9e',
-  '#5d6b78',
-]
-
-export function CategoryPieChart({ data }: CategoryPieChartProps) {
+export function CategoryPieChart({ data, colorByType }: CategoryPieChartProps) {
   if (data.length === 0) {
     return <p className="families-help">No `Spent` data for chart visualization.</p>
   }
@@ -37,10 +29,10 @@ export function CategoryPieChart({ data }: CategoryPieChartProps) {
             outerRadius={85}
             label
           >
-            {data.map((entry, index) => (
+            {data.map((entry) => (
               <Cell
                 key={`${entry.type}-${entry.amount}`}
-                fill={sliceColors[index % sliceColors.length]}
+                fill={getCategoryColor(entry.type, colorByType)}
               />
             ))}
           </Pie>
@@ -56,11 +48,11 @@ export function CategoryPieChart({ data }: CategoryPieChartProps) {
       </ResponsiveContainer>
 
       <ul className="dashboard-chart-legend">
-        {data.map((entry, index) => (
+        {data.map((entry) => (
           <li className="dashboard-chart-legend-item" key={entry.type}>
             <span
               className="dashboard-chart-dot"
-              style={{ backgroundColor: sliceColors[index % sliceColors.length] }}
+              style={{ backgroundColor: getCategoryColor(entry.type, colorByType) }}
               aria-hidden="true"
             />
             <span>{entry.type}</span>

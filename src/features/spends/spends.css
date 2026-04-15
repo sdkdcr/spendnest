@@ -3,12 +3,23 @@
   gap: 1rem;
 }
 
+.spend-template-toolbar {
+  display: flex;
+  justify-content: flex-start;
+}
+
 .spend-template-form {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.75rem;
   display: grid;
   gap: 0.45rem;
+}
+
+.spend-template-form-modal {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
 }
 
 .spend-template-form h3 {

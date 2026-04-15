@@ -28,6 +28,7 @@ See detailed requirements: `docs/REQUIREMENTS.md`.
 
 Design details and system diagrams: `docs/DESIGN.md`.
 Database schema details: `docs/DB_SCHEMA.md`.
+Firebase auth/sync setup: `docs/FIREBASE_SETUP.md`.
 
 ## Engineering Guidelines (Project Alignment)
 Aligned with `.github/copilot-instructions.md`:

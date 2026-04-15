@@ -1,5 +1,6 @@
 import { appDb } from '../../shared/db/appDb'
 import type { MonthlySpendEntry, SpendTemplate } from '../../shared/domain/types'
+import { requestAutoSync } from '../../shared/sync/auto-sync'
 import { isTemplateEligibleForMonth } from './frequency.rules'
 
 export interface MonthlyGenerationResult {
@@ -66,7 +67,7 @@ export async function ensureMonthlyEntries(
   familyId: number,
   monthKey: string,
 ): Promise<MonthlyGenerationResult> {
-  return appDb.transaction(
+  const result = await appDb.transaction(
     'rw',
     appDb.spendTemplates,
     appDb.monthlySpendEntries,
@@ -113,4 +114,10 @@ export async function ensureMonthlyEntries(
       }
     },
   )
+
+  if (result.createdCount > 0) {
+    requestAutoSync()
+  }
+
+  return result
 }

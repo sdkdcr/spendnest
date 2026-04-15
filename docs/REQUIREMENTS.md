@@ -18,7 +18,10 @@ Primary goals:
 ### 2.2 Data Strategy
 - Local-first persistence using IndexedDB.
 - Export/import backups as initial safety mechanism.
-- Optional cloud sync/backup (Google Drive) in a later phase.
+- Add cloud sync using Firebase Firestore to support multi-device usage.
+- Use Firebase Authentication with Google Sign-In for user identity/session.
+- Keep IndexedDB as offline/local cache and sync with Firestore when online.
+- Target audience is internal usage (~20-30 users), so design for low operational overhead and free-tier-first usage.
 
 ### 2.3 UX Strategy
 - Mobile-first UI that scales to desktop.
@@ -38,10 +41,11 @@ Primary goals:
 - Theming: `Light`, `Dark`, and `Device` preference mode.
 - Responsive layouts for phone and desktop browser.
 - Manual backup/restore (JSON/CSV acceptable for MVP).
+- Google authentication (Firebase Auth, Google provider).
+- Multi-device data sync via Firebase Firestore.
 
 ### 3.2 Out of Scope (MVP)
 - Bank integrations and automatic transaction ingestion.
-- Multi-device real-time sync.
 - Advanced forecasting, AI insights, or tax workflows.
 - Multi-currency accounting complexity.
 
@@ -92,7 +96,16 @@ Each spend template supports:
 - User can import backup file to restore data.
 - Validation should reject malformed backups with clear error messaging.
 
-### 4.7 Themeing
+### 4.7 Authentication and Multi-Device Sync
+- User can sign in with Google account.
+- App data is isolated per authenticated user (or explicit shared family model if introduced).
+- Data written on one device should be available on another signed-in device after sync.
+- IndexedDB remains the local source for offline UX; Firestore is the cloud source for cross-device continuity.
+- Sync should be resilient to temporary offline conditions and retry when connectivity returns.
+- On first sign-in on a new device, app should pull the latest cloud data before allowing conflicting edits.
+- Basic conflict policy for MVP: last-write-wins at record level using `updatedAt` timestamps.
+
+### 4.8 Theming
 - App supports three theme modes:
   - `Dark`
   - `Light`
@@ -111,6 +124,7 @@ Each spend template supports:
 - App should work offline after initial load.
 - Local data operations should be resilient against refresh/reopen.
 - Theme preference should remain stable across reloads.
+- Sync failures should surface clear non-blocking messaging and allow retry.
 
 ### 5.3 Performance
 - Month dashboard should render quickly for small-to-medium personal datasets.
@@ -147,8 +161,15 @@ Each spend template supports:
 - PWA installability and offline shell.
 - Deploy to Cloudflare Pages.
 
-### Phase 5 (Future)
-- Google Drive backup integration.
+### Phase 5: Auth + Cloud Sync
+- Firebase project setup and environment wiring.
+- Google Sign-In via Firebase Authentication.
+- Firestore data model and security rules.
+- Bidirectional sync between IndexedDB and Firestore.
+- Conflict handling (last-write-wins for MVP).
+
+### Phase 6 (Future)
+- Optional Google Drive backup integration in addition to Firestore sync.
 - Capacitor packaging for iOS/Android distribution.
 
 ## 8. Acceptance Criteria (MVP)
@@ -163,6 +184,8 @@ Each spend template supports:
 ## 9. Open Decisions
 - Whether skipped spends should appear in totals as zero (default assumed).
 - Conflict behavior when importing backup over existing data (merge vs replace).
+- Firestore collection shape (`per-user` vs `shared-family`) for internal collaboration model.
+- Whether backup import should write to local-only first or propagate immediately to Firestore.
 
 ## 10. Task Tracker
 | Task | Status |
@@ -186,3 +209,13 @@ Each spend template supports:
 | Backup import with validation | - [x] |
 | Offline-ready behavior (PWA shell) | - [x] |
 | Cloudflare Pages deployment setup | - [x] |
+| Firebase project setup (Auth + Firestore) | - [x] |
+| Google Sign-In integration | - [x] |
+| Firestore security rules for internal app usage | - [ ] |
+| IndexedDB <-> Firestore sync engine | - [x] |
+| Manual sync controls (`Sync now`, optional auto-sync toggle) | - [x] |
+| Dashboard spend-card editing (`cost`, `quantity`) | - [x] |
+| Dashboard person-level filter with family default scope | - [x] |
+| Consistent category color mapping (chart + spend ribbons) | - [x] |
+| Modal-based add/edit flows (Spends + Dashboard) | - [x] |
+| Cross-device sync validation (20-30 internal users target) | - [ ] |

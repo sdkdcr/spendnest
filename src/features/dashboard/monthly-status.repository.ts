@@ -1,5 +1,6 @@
 import { appDb } from '../../shared/db/appDb'
 import type { MonthlySpendEntry, MonthlySpendStatus } from '../../shared/domain/types'
+import { requestAutoSync } from '../../shared/sync/auto-sync'
 
 function nowIso(): string {
   return new Date().toISOString()
@@ -33,6 +34,24 @@ export async function updateMonthlyEntryStatus(
     manuallyUpdatedStatus: true,
     updatedAt: nowIso(),
   })
+  requestAutoSync()
+}
+
+interface MonthlyEntryDetailsPatch {
+  cost: number
+  quantity: string
+}
+
+export async function updateMonthlyEntryDetails(
+  entryId: number,
+  patch: MonthlyEntryDetailsPatch,
+): Promise<void> {
+  await appDb.monthlySpendEntries.update(entryId, {
+    cost: patch.cost,
+    quantity: patch.quantity,
+    updatedAt: nowIso(),
+  })
+  requestAutoSync()
 }
 
 function parseMonthKey(monthKey: string): { year: number; month: number } | null {
@@ -89,7 +108,7 @@ export async function applyEmiAutoStatus(
 ): Promise<number> {
   const referenceDate = new Date()
 
-  return appDb.transaction(
+  const updatedCount = await appDb.transaction(
     'rw',
     appDb.monthlySpendEntries,
     appDb.spendTemplates,
@@ -145,4 +164,10 @@ export async function applyEmiAutoStatus(
       return updatedCount
     },
   )
+
+  if (updatedCount > 0) {
+    requestAutoSync()
+  }
+
+  return updatedCount
 }
