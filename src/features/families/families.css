@@ -1,0 +1,156 @@
+.families-layout {
+  display: grid;
+  gap: 1rem;
+}
+
+.families-create-form {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.families-create-form .field {
+  flex: 1 1 260px;
+}
+
+.families-input {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--input-border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.families-button {
+  border: 1px solid var(--border);
+  background: var(--chip);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0.5rem 0.8rem;
+  cursor: pointer;
+}
+
+.families-button-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.families-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.family-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem;
+  background: color-mix(in srgb, var(--surface) 94%, var(--chip));
+}
+
+.family-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.family-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.family-name {
+  font-weight: 700;
+}
+
+.family-tag {
+  font-size: 0.75rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+}
+
+.family-actions {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.family-edit {
+  margin-top: 0.6rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.families-help {
+  color: var(--text-muted);
+}
+
+.families-error {
+  color: #d12d2d;
+}
+
+.persons-panel {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.persons-create-form {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.persons-create-form .families-input {
+  flex: 1 1 240px;
+}
+
+.persons-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.person-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.55rem;
+  background: color-mix(in srgb, var(--surface) 95%, var(--chip));
+}
+
+.person-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.person-name {
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .family-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .person-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

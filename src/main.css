@@ -1,0 +1,91 @@
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --text: #1a1f2b;
+  --text-muted: #5f5f70;
+  --accent: #223c7d;
+  --accent-contrast: #ffffff;
+  --chip: #eef1f6;
+  --border: #d9dce4;
+  --input-border: #c8cedc;
+  --shadow: 0 8px 20px rgba(25, 35, 59, 0.08);
+
+  font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--text);
+  background-color: var(--bg);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root[data-theme='dark'] {
+  --bg: #0d111b;
+  --surface: #151c2b;
+  --text: #e5eaf5;
+  --text-muted: #a3adc4;
+  --accent: #8ea9ff;
+  --accent-contrast: #0f172a;
+  --chip: #1d2638;
+  --border: #263249;
+  --input-border: #33415d;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+h2 {
+  margin: 0 0 0.75rem;
+}
+
+p {
+  margin: 0;
+}
+
+input,
+button,
+select {
+  font: inherit;
+}
+
+label {
+  display: inline-block;
+  margin: 0 0 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+input[type='month'],
+select {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--input-border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.settings-field {
+  margin-bottom: 1rem;
+}
+
+.field-help {
+  margin-top: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}

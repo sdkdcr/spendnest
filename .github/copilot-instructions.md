@@ -1,0 +1,7 @@
+- Modularize: one concern per file, split when files exceed ~200 lines
+- Organize files by feature, not by layer
+- Before any refactoring, explain the change and ask for confirmation
+- Follow existing naming conventions in the file being edited
+- No unused imports, no dead code
+- If a change deviates from or updates the original design, update any relevant design or strategy docs in the repo (e.g. docs/, ADRs, README sections) to reflect the new direction
+- Add Mermaid diagrams wherever applicable (e.g. flows, architecture, DB schema, state machines) — embed them directly in Markdown docs

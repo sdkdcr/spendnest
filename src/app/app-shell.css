@@ -1,0 +1,161 @@
+.app-shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: clamp(0.75rem, 2vw, 1.25rem);
+}
+
+.app-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+
+.app-kicker {
+  margin: 0;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.app-header h1 {
+  margin: 0.2rem 0 0;
+  font-size: clamp(1.15rem, 2.8vw, 1.9rem);
+}
+
+.app-header-meta {
+  display: grid;
+  gap: 0.3rem;
+  text-align: right;
+}
+
+.app-month-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.app-month-pill {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.app-month-btn {
+  border: 1px solid var(--border);
+  background: var(--chip);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.28rem 0.62rem;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.app-month-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.app-month-picker-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.app-family {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.app-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.9rem;
+}
+
+.app-nav {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.15rem 0;
+  scrollbar-width: thin;
+}
+
+@media (max-width: 899px) {
+  .app-nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    padding: 0.55rem 0 0.45rem;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+.nav-link {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--chip);
+}
+
+.nav-link-active {
+  color: var(--accent-contrast);
+  background: var(--accent);
+}
+
+.app-content {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: clamp(0.85rem, 1.5vw, 1.2rem);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  min-height: 55dvh;
+}
+
+@media (max-width: 640px) {
+  .app-header {
+    flex-direction: column;
+  }
+
+  .app-header-meta {
+    text-align: left;
+  }
+
+  .app-month-toolbar {
+    justify-content: flex-start;
+  }
+}
+
+@media (min-width: 900px) {
+  .app-layout {
+    grid-template-columns: 210px minmax(0, 1fr);
+    align-items: start;
+    gap: 1rem;
+  }
+
+  .app-nav {
+    flex-direction: column;
+    position: sticky;
+    top: 0.85rem;
+    overflow: visible;
+  }
+
+  .nav-link {
+    border-radius: 12px;
+    padding: 0.6rem 0.8rem;
+  }
+}

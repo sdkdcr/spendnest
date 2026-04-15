@@ -1,0 +1,121 @@
+.spends-layout {
+  display: grid;
+  gap: 1rem;
+}
+
+.spend-template-form {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.spend-template-form h3 {
+  margin: 0;
+}
+
+.spend-template-actions {
+  margin-top: 0.35rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.spend-template-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.spend-template-item {
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  border-radius: 12px;
+  padding: 0.8rem;
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--accent) 14%, transparent) 0%, transparent 48%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 96%, var(--chip)) 0%, var(--surface) 100%);
+  box-shadow: var(--shadow);
+}
+
+.spend-template-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.spend-template-name {
+  margin: 0;
+  font-weight: 800;
+  font-size: 1.04rem;
+  letter-spacing: 0.01em;
+}
+
+.spend-template-amount {
+  margin: 0;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.spend-template-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+}
+
+.spend-template-chip {
+  font-size: 0.78rem;
+  font-weight: 650;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--chip) 80%, var(--surface));
+  border-radius: 999px;
+  padding: 0.18rem 0.5rem;
+}
+
+.spend-template-detail-grid {
+  margin-top: 0.6rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.spend-template-meta {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+
+.spend-template-meta-key {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.spend-template-actions-row {
+  margin-top: 0.7rem;
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.spend-template-delete {
+  border-color: #a12f2f;
+  color: #a12f2f;
+}
+
+@media (max-width: 640px) {
+  .spend-template-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .spend-template-meta {
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+}
