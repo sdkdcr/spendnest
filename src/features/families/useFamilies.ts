@@ -33,11 +33,14 @@ export function useFamilies() {
     void initFamilies()
   }, [refreshFamilies])
 
-  async function handleCreateFamily(name: string): Promise<Family | null> {
+  async function handleCreateFamily(
+    name: string,
+    memberEmails: string[],
+  ): Promise<Family | null> {
     setErrorMessage(null)
 
     try {
-      const createdFamily = await createFamily(name)
+      const createdFamily = await createFamily(name, memberEmails)
       setFamilies((currentFamilies) => [createdFamily, ...currentFamilies])
       return createdFamily
     } catch {
@@ -49,11 +52,12 @@ export function useFamilies() {
   async function handleRenameFamily(
     familyId: number,
     name: string,
+    memberEmails: string[],
   ): Promise<boolean> {
     setErrorMessage(null)
 
     try {
-      await renameFamily(familyId, name)
+      await renameFamily(familyId, name, memberEmails)
       const refreshedFamilies = await listFamilies()
       setFamilies(refreshedFamilies)
       return true

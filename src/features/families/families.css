@@ -3,15 +3,22 @@
   gap: 1rem;
 }
 
+.families-toolbar,
+.persons-toolbar {
+  display: flex;
+  justify-content: flex-start;
+}
+
 .families-create-form {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.families-create-actions {
   display: flex;
   gap: 0.6rem;
   flex-wrap: wrap;
-  align-items: flex-end;
-}
-
-.families-create-form .field {
-  flex: 1 1 260px;
+  align-items: center;
 }
 
 .families-input {
@@ -108,13 +115,8 @@
 }
 
 .persons-create-form {
-  display: flex;
-  gap: 0.55rem;
-  flex-wrap: wrap;
-}
-
-.persons-create-form .families-input {
-  flex: 1 1 240px;
+  display: grid;
+  gap: 0.65rem;
 }
 
 .persons-list {

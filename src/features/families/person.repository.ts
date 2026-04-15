@@ -1,4 +1,5 @@
 import { appDb } from '../../shared/db/appDb'
+import { generateClientId } from '../../shared/domain/id'
 import type { Person } from '../../shared/domain/types'
 import { requestAutoSync } from '../../shared/sync/auto-sync'
 
@@ -19,20 +20,19 @@ export async function createPerson(
   name: string,
 ): Promise<Person> {
   const timestamp = nowIso()
+  const id = generateClientId()
   const nextPerson: Person = {
+    id,
     familyId,
     name,
     createdAt: timestamp,
     updatedAt: timestamp,
   }
 
-  const id = await appDb.persons.add(nextPerson)
+  await appDb.persons.put(nextPerson)
   requestAutoSync()
 
-  return {
-    ...nextPerson,
-    id,
-  }
+  return nextPerson
 }
 
 export async function renamePerson(personId: number, name: string): Promise<void> {

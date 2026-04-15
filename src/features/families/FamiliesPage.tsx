@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useAppStore } from '../../shared/state/useAppStore'
+import { Modal } from '../../shared/ui/Modal'
 import { PersonsPanel } from './PersonsPanel'
 import { useFamilies } from './useFamilies'
 import './families.css'
@@ -18,8 +19,22 @@ export function FamiliesPage() {
   const setSelectedFamilyId = useAppStore((state) => state.setSelectedFamilyId)
 
   const [newFamilyName, setNewFamilyName] = useState('')
+  const [newFamilyMemberEmails, setNewFamilyMemberEmails] = useState('')
+  const [isCreateFamilyModalOpen, setIsCreateFamilyModalOpen] = useState(false)
   const [editingFamilyId, setEditingFamilyId] = useState<number | null>(null)
   const [editingName, setEditingName] = useState('')
+  const [editingMemberEmails, setEditingMemberEmails] = useState('')
+
+  function parseEmails(rawValue: string): string[] {
+    return Array.from(
+      new Set(
+        rawValue
+          .split(',')
+          .map((email) => email.trim())
+          .filter((email) => email.length > 0),
+      ),
+    )
+  }
 
   useEffect(() => {
     if (families.length === 0) {
@@ -49,12 +64,17 @@ export function FamiliesPage() {
       return
     }
 
-    const createdFamily = await createFamily(normalizedName)
+    const createdFamily = await createFamily(
+      normalizedName,
+      parseEmails(newFamilyMemberEmails),
+    )
     if (createdFamily?.id !== undefined) {
       setSelectedFamilyId(createdFamily.id)
     }
 
     setNewFamilyName('')
+    setNewFamilyMemberEmails('')
+    setIsCreateFamilyModalOpen(false)
   }
 
   async function handleDeleteFamily(familyId: number) {
@@ -82,10 +102,15 @@ export function FamiliesPage() {
       return
     }
 
-    const updated = await renameFamily(familyId, normalizedName)
+    const updated = await renameFamily(
+      familyId,
+      normalizedName,
+      parseEmails(editingMemberEmails),
+    )
     if (updated) {
       setEditingFamilyId(null)
       setEditingName('')
+      setEditingMemberEmails('')
     }
   }
 
@@ -98,24 +123,70 @@ export function FamiliesPage() {
         </p>
       </div>
 
-      <form className="families-create-form" onSubmit={handleCreateFamily}>
-        <div className="field">
-          <label htmlFor="family-name">New family name</label>
-          <input
-            id="family-name"
-            className="families-input"
-            value={newFamilyName}
-            onChange={(event) => {
-              setNewFamilyName(event.currentTarget.value)
-            }}
-            placeholder="e.g. Home Budget"
-          />
-        </div>
-
-        <button className="families-button families-button-primary" type="submit">
+      <div className="families-toolbar">
+        <button
+          className="families-button families-button-primary"
+          type="button"
+          onClick={() => {
+            setIsCreateFamilyModalOpen(true)
+          }}
+        >
           Add Family
         </button>
-      </form>
+      </div>
+
+      {isCreateFamilyModalOpen ? (
+        <Modal
+          title="Add Family"
+          onClose={() => {
+            setIsCreateFamilyModalOpen(false)
+          }}
+        >
+          <form className="families-create-form" onSubmit={handleCreateFamily}>
+            <div className="field">
+              <label htmlFor="family-name">New family name</label>
+              <input
+                id="family-name"
+                className="families-input"
+                value={newFamilyName}
+                onChange={(event) => {
+                  setNewFamilyName(event.currentTarget.value)
+                }}
+                placeholder="e.g. Home Budget"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="family-member-emails">
+                Member emails (comma separated, optional)
+              </label>
+              <input
+                id="family-member-emails"
+                className="families-input"
+                value={newFamilyMemberEmails}
+                onChange={(event) => {
+                  setNewFamilyMemberEmails(event.currentTarget.value)
+                }}
+                placeholder="e.g. a@x.com, b@x.com"
+              />
+            </div>
+
+            <div className="families-create-actions">
+              <button className="families-button families-button-primary" type="submit">
+                Add Family
+              </button>
+              <button
+                className="families-button"
+                type="button"
+                onClick={() => {
+                  setIsCreateFamilyModalOpen(false)
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
 
       {selectedFamilyName ? (
         <p className="families-help">Active family: {selectedFamilyName}</p>
@@ -160,6 +231,7 @@ export function FamiliesPage() {
                       onClick={() => {
                         setEditingFamilyId(familyId)
                         setEditingName(family.name)
+                        setEditingMemberEmails((family.memberEmails ?? []).join(', '))
                       }}
                     >
                       Rename
@@ -176,6 +248,12 @@ export function FamiliesPage() {
                   </div>
                 </div>
 
+                {family.memberEmails && family.memberEmails.length > 0 ? (
+                  <p className="families-help">
+                    Members: {family.memberEmails.join(', ')}
+                  </p>
+                ) : null}
+
                 {isEditing ? (
                   <div className="family-edit">
                     <input
@@ -184,6 +262,14 @@ export function FamiliesPage() {
                       onChange={(event) => {
                         setEditingName(event.currentTarget.value)
                       }}
+                    />
+                    <input
+                      className="families-input"
+                      value={editingMemberEmails}
+                      onChange={(event) => {
+                        setEditingMemberEmails(event.currentTarget.value)
+                      }}
+                      placeholder="Member emails (comma separated)"
                     />
                     <button
                       className="families-button families-button-primary"
@@ -200,6 +286,7 @@ export function FamiliesPage() {
                       onClick={() => {
                         setEditingFamilyId(null)
                         setEditingName('')
+                        setEditingMemberEmails('')
                       }}
                     >
                       Cancel

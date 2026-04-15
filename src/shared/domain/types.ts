@@ -5,6 +5,8 @@ export type MonthlySpendStatus = 'Spent' | 'Not Yet' | 'Skip'
 export interface Family {
   id?: number
   name: string
+  memberEmails?: string[]
+  cloudFamilyId?: string
   createdAt: string
   updatedAt: string
 }

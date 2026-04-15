@@ -22,6 +22,14 @@ class SpendNestDb extends Dexie {
       monthlySpendEntries:
         '++id, familyId, templateId, personId, monthKey, status, type, updatedAt',
     })
+
+    this.version(2).stores({
+      families: '++id, name, cloudFamilyId, updatedAt',
+      persons: '++id, familyId, name, updatedAt',
+      spendTemplates: '++id, familyId, personId, frequency, type, updatedAt',
+      monthlySpendEntries:
+        '++id, familyId, templateId, personId, monthKey, status, type, updatedAt',
+    })
   }
 }
 

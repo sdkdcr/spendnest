@@ -5,6 +5,8 @@ const timestampSchema = z.string().min(1)
 const familySchema = z.object({
   id: z.number().int().positive().optional(),
   name: z.string().min(1),
+  memberEmails: z.array(z.string().email()).optional(),
+  cloudFamilyId: z.string().min(1).optional(),
   createdAt: timestampSchema,
   updatedAt: timestampSchema,
 })

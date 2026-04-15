@@ -78,21 +78,45 @@ ID strategy:
 - Prefer deterministic IDs generated on client (UUID/ULID) instead of auto IDs.
 - Keep IDs stable across devices for simpler merge and upsert.
 
-## 7. Security Rules (Starter)
-Use a strict owner-only baseline first.
+## 7. Security Rules (Shared Family by Email)
+For shared families, authorize access when the signed-in email is present in the
+family document's `memberEmails` array.
 
 ```txt
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+
+    function isFamilyMember(familyId) {
+      return isSignedIn()
+        && request.auth.token.email in get(/databases/$(database)/documents/families/$(familyId)).data.memberEmails;
+    }
+
+    match /families/{familyId} {
+      allow read, write: if isFamilyMember(familyId);
+
+      match /persons/{personId} {
+        allow read, write: if isFamilyMember(familyId);
+      }
+
+      match /spendTemplates/{templateId} {
+        allow read, write: if isFamilyMember(familyId);
+      }
+
+      match /monthlySpendEntries/{entryId} {
+        allow read, write: if isFamilyMember(familyId);
+      }
     }
   }
 }
 ```
 
-If you later support shared family collaboration, introduce explicit membership docs and role checks before loosening this rule.
+Notes:
+- Save emails in `memberEmails` in the same casing as auth provider returns (or consistently lowercase in both app + rules).
+- Owner should also be included in `memberEmails`.
 
 ## 8. Sync Strategy (MVP)
 - Conflict policy: last-write-wins using `updatedAt`.

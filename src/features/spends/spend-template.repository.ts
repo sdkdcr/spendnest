@@ -1,4 +1,5 @@
 import { appDb } from '../../shared/db/appDb'
+import { generateClientId } from '../../shared/domain/id'
 import type { SpendFrequency, SpendTemplate } from '../../shared/domain/types'
 import { requestAutoSync } from '../../shared/sync/auto-sync'
 
@@ -32,7 +33,9 @@ export async function createSpendTemplate(
   draft: SpendTemplateDraft,
 ): Promise<SpendTemplate> {
   const timestamp = nowIso()
+  const id = generateClientId()
   const nextTemplate: SpendTemplate = {
+    id,
     familyId,
     personId: draft.personId,
     type: draft.type,
@@ -46,13 +49,10 @@ export async function createSpendTemplate(
     updatedAt: timestamp,
   }
 
-  const id = await appDb.spendTemplates.add(nextTemplate)
+  await appDb.spendTemplates.put(nextTemplate)
   requestAutoSync()
 
-  return {
-    ...nextTemplate,
-    id,
-  }
+  return nextTemplate
 }
 
 export async function updateSpendTemplate(

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { Modal } from '../../shared/ui/Modal'
 import { usePersons } from './usePersons'
 
 interface PersonsPanelProps {
@@ -12,6 +13,7 @@ export function PersonsPanel({ familyId, familyName }: PersonsPanelProps) {
     usePersons(familyId)
 
   const [newPersonName, setNewPersonName] = useState('')
+  const [isCreatePersonModalOpen, setIsCreatePersonModalOpen] = useState(false)
   const [editingPersonId, setEditingPersonId] = useState<number | null>(null)
   const [editingPersonName, setEditingPersonName] = useState('')
 
@@ -26,6 +28,7 @@ export function PersonsPanel({ familyId, familyName }: PersonsPanelProps) {
     const created = await createPerson(normalizedName)
     if (created) {
       setNewPersonName('')
+      setIsCreatePersonModalOpen(false)
     }
   }
 
@@ -62,24 +65,55 @@ export function PersonsPanel({ familyId, familyName }: PersonsPanelProps) {
         </p>
       </div>
 
-      <form className="persons-create-form" onSubmit={handleCreatePerson}>
-        <input
-          className="families-input"
-          value={newPersonName}
-          onChange={(event) => {
-            setNewPersonName(event.currentTarget.value)
-          }}
-          placeholder="e.g. Deepak"
-          disabled={familyId === null}
-        />
+      <div className="persons-toolbar">
         <button
           className="families-button families-button-primary"
-          type="submit"
+          type="button"
           disabled={familyId === null}
+          onClick={() => {
+            setIsCreatePersonModalOpen(true)
+          }}
         >
           Add Person
         </button>
-      </form>
+      </div>
+
+      {isCreatePersonModalOpen ? (
+        <Modal
+          title="Add Person"
+          onClose={() => {
+            setIsCreatePersonModalOpen(false)
+          }}
+        >
+          <form className="persons-create-form" onSubmit={handleCreatePerson}>
+            <input
+              className="families-input"
+              value={newPersonName}
+              onChange={(event) => {
+                setNewPersonName(event.currentTarget.value)
+              }}
+              placeholder="e.g. Deepak"
+            />
+            <div className="families-create-actions">
+              <button
+                className="families-button families-button-primary"
+                type="submit"
+              >
+                Add Person
+              </button>
+              <button
+                className="families-button"
+                type="button"
+                onClick={() => {
+                  setIsCreatePersonModalOpen(false)
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
 
       {errorMessage ? <p className="families-error">{errorMessage}</p> : null}
 

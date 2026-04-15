@@ -1,4 +1,5 @@
 import { appDb } from '../../shared/db/appDb'
+import { generateClientId } from '../../shared/domain/id'
 import type { MonthlySpendEntry, SpendTemplate } from '../../shared/domain/types'
 import { requestAutoSync } from '../../shared/sync/auto-sync'
 import { isTemplateEligibleForMonth } from './frequency.rules'
@@ -22,6 +23,7 @@ function createMonthlyEntry(
   const timestamp = nowIso()
 
   return {
+    id: generateClientId(),
     familyId: template.familyId,
     templateId: template.id as number,
     personId: template.personId,

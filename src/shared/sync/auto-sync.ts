@@ -26,7 +26,10 @@ async function runAutoSync(): Promise<void> {
   state.setSyncState('syncing', 'Syncing cloud data...')
 
   try {
-    const summary = await pushLocalDataToCloud(state.authUser.uid)
+    const summary = await pushLocalDataToCloud(
+      state.authUser.uid,
+      state.authUser.email ?? '',
+    )
     useAppStore
       .getState()
       .setSyncState('success', `Sync complete. Pushed ${summary.pushed} records.`)

@@ -154,7 +154,10 @@ export const useAppStore = create<AppState>((set) => ({
     })
 
     try {
-      const summary = await syncUserData(state.authUser.uid)
+      const summary = await syncUserData(
+        state.authUser.uid,
+        state.authUser.email ?? '',
+      )
       await ensureSelectedFamilyAfterSync()
       set({
         syncStatus: 'success',

@@ -3,9 +3,12 @@ import {
   doc,
   getDocs,
   getFirestore,
+  query,
+  where,
   writeBatch,
   type CollectionReference,
   type DocumentData,
+  type DocumentReference,
 } from 'firebase/firestore'
 import type {
   Family,
@@ -15,37 +18,41 @@ import type {
 } from '../domain/types'
 import { getFirebaseApp } from './firebaseApp'
 
-export interface UserCloudData {
-  families: Family[]
+const WRITE_BATCH_LIMIT = 400
+
+interface CloudFamilyDoc {
+  cloudFamilyId: string
+  name: string
+  memberEmails: string[]
+  ownerUid: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SharedFamilyBundle {
+  family: Family
   persons: Person[]
   spendTemplates: SpendTemplate[]
   monthlySpendEntries: MonthlySpendEntry[]
 }
 
-type UserCollectionName =
-  | 'families'
-  | 'persons'
-  | 'spendTemplates'
-  | 'monthlySpendEntries'
-const WRITE_BATCH_LIMIT = 400
-
 function getDb() {
   return getFirestore(getFirebaseApp())
 }
 
-function getUserCollection(
-  uid: string,
-  collectionName: UserCollectionName,
-): CollectionReference<DocumentData, DocumentData> {
-  return collection(getDb(), 'users', uid, collectionName)
+function normalizeEmail(email: string): string {
+  return email.trim()
 }
 
-async function readUserCollection<T>(
-  uid: string,
-  collectionName: UserCollectionName,
-): Promise<T[]> {
-  const snapshot = await getDocs(getUserCollection(uid, collectionName))
-  return snapshot.docs.map((snapshotDoc) => snapshotDoc.data() as T)
+function getFamilyRef(cloudFamilyId: string): DocumentReference<DocumentData, DocumentData> {
+  return doc(getDb(), 'families', cloudFamilyId)
+}
+
+function getFamilySubCollection(
+  cloudFamilyId: string,
+  collectionName: 'persons' | 'spendTemplates' | 'monthlySpendEntries',
+): CollectionReference<DocumentData, DocumentData> {
+  return collection(getDb(), 'families', cloudFamilyId, collectionName)
 }
 
 function getRecordId(record: { id?: number }): string | null {
@@ -56,9 +63,17 @@ function getRecordId(record: { id?: number }): string | null {
   return String(record.id)
 }
 
-async function upsertUserCollection<T extends { id?: number }>(
-  uid: string,
-  collectionName: UserCollectionName,
+async function readFamilySubCollection<T>(
+  cloudFamilyId: string,
+  collectionName: 'persons' | 'spendTemplates' | 'monthlySpendEntries',
+): Promise<T[]> {
+  const snapshot = await getDocs(getFamilySubCollection(cloudFamilyId, collectionName))
+  return snapshot.docs.map((snapshotDoc) => snapshotDoc.data() as T)
+}
+
+async function upsertSubCollection<T extends { id?: number }>(
+  cloudFamilyId: string,
+  collectionName: 'persons' | 'spendTemplates' | 'monthlySpendEntries',
   records: T[],
 ): Promise<number> {
   const db = getDb()
@@ -70,7 +85,7 @@ async function upsertUserCollection<T extends { id?: number }>(
       }
 
       return {
-        ref: doc(db, 'users', uid, collectionName, recordId),
+        ref: doc(db, 'families', cloudFamilyId, collectionName, recordId),
         record,
       }
     })
@@ -96,32 +111,91 @@ async function upsertUserCollection<T extends { id?: number }>(
   return writeTargets.length
 }
 
-export async function loadUserCloudData(uid: string): Promise<UserCloudData> {
-  const [families, persons, spendTemplates, monthlySpendEntries] = await Promise.all([
-    readUserCollection<Family>(uid, 'families'),
-    readUserCollection<Person>(uid, 'persons'),
-    readUserCollection<SpendTemplate>(uid, 'spendTemplates'),
-    readUserCollection<MonthlySpendEntry>(uid, 'monthlySpendEntries'),
-  ])
+export async function loadSharedFamilyData(
+  email: string,
+): Promise<SharedFamilyBundle[]> {
+  const normalizedEmail = normalizeEmail(email)
 
-  return {
-    families,
-    persons,
-    spendTemplates,
-    monthlySpendEntries,
-  }
+  const familyQuery = query(
+    collection(getDb(), 'families'),
+    where('memberEmails', 'array-contains', normalizedEmail),
+  )
+
+  const familySnapshot = await getDocs(familyQuery)
+
+  const bundles = await Promise.all(
+    familySnapshot.docs.map(async (snapshotDoc) => {
+      const cloudFamily = snapshotDoc.data() as CloudFamilyDoc
+      const cloudFamilyId = snapshotDoc.id
+
+      const [persons, spendTemplates, monthlySpendEntries] = await Promise.all([
+        readFamilySubCollection<Person>(cloudFamilyId, 'persons'),
+        readFamilySubCollection<SpendTemplate>(cloudFamilyId, 'spendTemplates'),
+        readFamilySubCollection<MonthlySpendEntry>(cloudFamilyId, 'monthlySpendEntries'),
+      ])
+
+      const family: Family = {
+        name: cloudFamily.name,
+        cloudFamilyId,
+        memberEmails: cloudFamily.memberEmails,
+        createdAt: cloudFamily.createdAt,
+        updatedAt: cloudFamily.updatedAt,
+      }
+
+      return {
+        family,
+        persons,
+        spendTemplates,
+        monthlySpendEntries,
+      }
+    }),
+  )
+
+  return bundles
 }
 
-export async function pushUserCloudData(
+export async function pushSharedFamilyData(
   uid: string,
-  data: UserCloudData,
+  email: string,
+  familyBundles: SharedFamilyBundle[],
 ): Promise<number> {
-  const [familyCount, personCount, templateCount, monthlyEntryCount] = await Promise.all([
-    upsertUserCollection(uid, 'families', data.families),
-    upsertUserCollection(uid, 'persons', data.persons),
-    upsertUserCollection(uid, 'spendTemplates', data.spendTemplates),
-    upsertUserCollection(uid, 'monthlySpendEntries', data.monthlySpendEntries),
-  ])
+  const normalizedEmail = normalizeEmail(email)
+  const db = getDb()
+  let totalWrites = 0
 
-  return familyCount + personCount + templateCount + monthlyEntryCount
+  for (const bundle of familyBundles) {
+    const cloudFamilyId = bundle.family.cloudFamilyId
+    if (!cloudFamilyId) {
+      continue
+    }
+
+    const memberEmails = Array.from(
+      new Set([normalizedEmail, ...(bundle.family.memberEmails ?? []).map(normalizeEmail)]),
+    )
+
+    const familyDoc: CloudFamilyDoc = {
+      cloudFamilyId,
+      name: bundle.family.name,
+      memberEmails,
+      ownerUid: uid,
+      createdAt: bundle.family.createdAt,
+      updatedAt: bundle.family.updatedAt,
+    }
+
+    await writeBatch(db)
+      .set(getFamilyRef(cloudFamilyId), familyDoc, { merge: true })
+      .commit()
+
+    totalWrites += 1
+
+    const [personCount, templateCount, monthlyCount] = await Promise.all([
+      upsertSubCollection(cloudFamilyId, 'persons', bundle.persons),
+      upsertSubCollection(cloudFamilyId, 'spendTemplates', bundle.spendTemplates),
+      upsertSubCollection(cloudFamilyId, 'monthlySpendEntries', bundle.monthlySpendEntries),
+    ])
+
+    totalWrites += personCount + templateCount + monthlyCount
+  }
+
+  return totalWrites
 }
