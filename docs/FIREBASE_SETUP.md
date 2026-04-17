@@ -3,12 +3,14 @@
 This guide enables multi-device sync for SpendNest while preserving local-first behavior.
 
 ## 1. Target Architecture
+
 - App host: Cloudflare Pages
 - Local cache/offline: IndexedDB (Dexie)
 - Identity: Firebase Authentication (Google provider)
 - Cloud sync store: Cloud Firestore
 
 Flow:
+
 1. User signs in with Google.
 2. App loads cloud data for that user into IndexedDB.
 3. User edits write to IndexedDB first.
@@ -16,12 +18,14 @@ Flow:
 5. Other devices pull updates on sign-in/open.
 
 ## 2. Create Firebase Project
+
 1. Open Firebase Console and create project: `spendnest` (or environment-specific name).
 2. Enable Google Analytics only if needed (optional for MVP).
 3. Add a Web App in Firebase project settings.
 4. Copy the Firebase web config values.
 
 ## 3. Enable Authentication (Google)
+
 1. Go to `Authentication -> Sign-in method`.
 2. Enable `Google` provider.
 3. Set support email.
@@ -31,12 +35,14 @@ Flow:
    - custom domain if used.
 
 ## 4. Enable Firestore
+
 1. Go to `Firestore Database -> Create database`.
 2. Start in `Production mode`.
 3. Choose closest region to primary users.
 4. Keep default database ID.
 
 ## 5. Environment Variables (Vite + Cloudflare Pages)
+
 Create `.env.local` for local development:
 
 ```bash
@@ -49,18 +55,22 @@ VITE_FIREBASE_APP_ID=...
 ```
 
 Cloudflare Pages:
+
 1. Open `Workers & Pages -> <project> -> Settings -> Variables and Secrets`.
 2. Add the same `VITE_FIREBASE_*` variables for `Production` and `Preview`.
 3. Redeploy after adding variables.
 
 Notes:
+
 - Firebase web config values are client-visible by design.
 - Never commit `.env.local`.
 
 ## 6. Data Model (Firestore)
+
 For current internal-user scope, use user-isolated documents.
 
 Collections:
+
 - `users/{uid}/families/{familyId}`
 - `users/{uid}/persons/{personId}`
 - `users/{uid}/spendTemplates/{templateId}`
@@ -68,6 +78,7 @@ Collections:
 - `users/{uid}/appSettings/default`
 
 Document fields:
+
 - Keep existing domain fields.
 - Include sync metadata:
   - `updatedAt` (ISO string or Firestore timestamp)
@@ -75,10 +86,12 @@ Document fields:
   - `lastSyncedAt` (optional, client bookkeeping)
 
 ID strategy:
+
 - Prefer deterministic IDs generated on client (UUID/ULID) instead of auto IDs.
 - Keep IDs stable across devices for simpler merge and upsert.
 
 ## 7. Security Rules (Shared Family by Email)
+
 For shared families, authorize access when the signed-in email is present in the
 family document's `memberEmails` array.
 
@@ -90,48 +103,51 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.email != null;
     }
 
-    function isRequesterInIncomingMembers() {
-      return isSignedIn()
-        && request.resource.data.memberEmails is list
-        && request.auth.token.email in request.resource.data.memberEmails;
-    }
-
-    function isRequesterInExistingFamily(familyId) {
-      return isSignedIn()
-        && request.auth.token.email in get(/databases/$(database)/documents/families/$(familyId)).data.memberEmails;
+    function isFamilyMemberDoc(familyId) {
+      let family = get(/databases/$(database)/documents/families/$(familyId));
+      return family != null
+        && family.data.memberEmails is list
+        && request.auth.token.email in family.data.memberEmails;
     }
 
     match /families/{familyId} {
-      // Avoid recursive get() for family document read by using resource.data.
-      allow read: if isSignedIn()
-        && resource.data.memberEmails is list
-        && request.auth.token.email in resource.data.memberEmails;
-      allow create: if isRequesterInIncomingMembers();
+      allow get: if isSignedIn()
+        && (resource == null
+          || (resource.data.memberEmails is list
+            && request.auth.token.email in resource.data.memberEmails));
+
+      allow list: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && request.resource.data.memberEmails is list
+        && request.auth.token.email in request.resource.data.memberEmails;
+
       allow update, delete: if isSignedIn()
         && resource.data.memberEmails is list
         && request.auth.token.email in resource.data.memberEmails;
 
       match /persons/{personId} {
-        allow read, write: if isRequesterInExistingFamily(familyId);
+        allow read, write: if isSignedIn() && isFamilyMemberDoc(familyId);
       }
-
       match /spendTemplates/{templateId} {
-        allow read, write: if isRequesterInExistingFamily(familyId);
+        allow read, write: if isSignedIn() && isFamilyMemberDoc(familyId);
       }
-
       match /monthlySpendEntries/{entryId} {
-        allow read, write: if isRequesterInExistingFamily(familyId);
+        allow read, write: if isSignedIn() && isFamilyMemberDoc(familyId);
       }
     }
   }
 }
+
 ```
 
 Notes:
+
 - Save emails in `memberEmails` in the same casing as auth provider returns (or consistently lowercase in both app + rules).
 - Owner should also be included in `memberEmails`.
 
 ## 8. Sync Strategy (MVP)
+
 - Conflict policy: last-write-wins using `updatedAt`.
 - Write path:
   1. Persist to IndexedDB immediately.
@@ -145,6 +161,7 @@ Notes:
   - On sync failure, mark pending state and retry on reconnect/app resume.
 
 ## 9. Implementation Checklist (Code)
+
 - Install Firebase SDK:
   - `npm install firebase`
 - Add modules:
@@ -163,6 +180,7 @@ Notes:
   - `Sync now` action
 
 ## 10. Operational Guidance
+
 - Expected usage (20-30 internal users) should typically remain within Firebase free quotas for normal traffic.
 - Monitor:
   - Firebase Console -> Authentication usage
@@ -170,6 +188,7 @@ Notes:
 - Add budget alerts in Google Cloud billing before scaling beyond internal usage.
 
 ## 11. Go-Live Validation
+
 1. User can sign in/out on local and production.
 2. Data created on Device A appears on Device B after login and sync.
 3. Offline edits persist locally and sync once online.

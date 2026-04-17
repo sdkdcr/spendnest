@@ -59,16 +59,23 @@ export async function updateSpendTemplate(
   templateId: number,
   draft: SpendTemplateDraft,
 ): Promise<void> {
-  await appDb.spendTemplates.update(templateId, {
-    personId: draft.personId,
-    type: draft.type,
-    name: draft.name,
-    frequency: draft.frequency,
-    cost: draft.cost,
-    quantity: draft.quantity,
-    emiAmount: draft.emiAmount,
-    deductionDayOfMonth: draft.deductionDayOfMonth,
-    updatedAt: nowIso(),
+  const timestamp = nowIso()
+  await appDb.transaction('rw', appDb.spendTemplates, appDb.monthlySpendEntries, async () => {
+    await appDb.spendTemplates.update(templateId, {
+      personId: draft.personId,
+      type: draft.type,
+      name: draft.name,
+      frequency: draft.frequency,
+      cost: draft.cost,
+      quantity: draft.quantity,
+      emiAmount: draft.emiAmount,
+      deductionDayOfMonth: draft.deductionDayOfMonth,
+      updatedAt: timestamp,
+    })
+    await appDb.monthlySpendEntries
+      .where('templateId')
+      .equals(templateId)
+      .modify({ name: draft.name, type: draft.type, updatedAt: timestamp })
   })
   requestAutoSync()
 }
