@@ -16,7 +16,42 @@ export async function listMonthlyEntries(
     .and((entry) => entry.monthKey === monthKey)
     .toArray()
 
-  return entries.sort((a, b) => {
+  const dedupedByTemplate = new Map<string, MonthlySpendEntry>()
+  const duplicateIdsToDelete: number[] = []
+
+  entries.forEach((entry) => {
+    const dedupeKey = `${entry.monthKey}:${entry.templateId}`
+    const existing = dedupedByTemplate.get(dedupeKey)
+
+    if (!existing) {
+      dedupedByTemplate.set(dedupeKey, entry)
+      return
+    }
+
+    const currentTimestamp = Date.parse(entry.updatedAt)
+    const existingTimestamp = Date.parse(existing.updatedAt)
+
+    if (currentTimestamp >= existingTimestamp) {
+      if (existing.id !== undefined) {
+        duplicateIdsToDelete.push(existing.id)
+      }
+      dedupedByTemplate.set(dedupeKey, entry)
+      return
+    }
+
+    if (entry.id !== undefined) {
+      duplicateIdsToDelete.push(entry.id)
+    }
+  })
+
+  if (duplicateIdsToDelete.length > 0) {
+    await appDb.monthlySpendEntries.bulkDelete(duplicateIdsToDelete)
+    requestAutoSync()
+  }
+
+  const dedupedEntries = Array.from(dedupedByTemplate.values())
+
+  return dedupedEntries.sort((a, b) => {
     if (a.type === b.type) {
       return a.name.localeCompare(b.name)
     }

@@ -15,3 +15,21 @@ export function generateClientId(): number {
 
   return candidate
 }
+
+function hashStringToSafeInt(value: string): number {
+  let hash = 0
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) % MAX_CLIENT_ID
+  }
+
+  if (hash < MIN_CLIENT_ID) {
+    return MIN_CLIENT_ID + hash
+  }
+
+  return hash
+}
+
+export function generateMonthlyEntryId(templateId: number, monthKey: string): number {
+  return hashStringToSafeInt(`${templateId}:${monthKey}`)
+}
