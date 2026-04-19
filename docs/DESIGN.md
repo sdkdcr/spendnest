@@ -120,7 +120,21 @@ Frequency rule details:
 - `Quarterly`: include when elapsed months from template `createdAt` month is divisible by `3`.
 - `Annually`: include when elapsed months from template `createdAt` month is divisible by `12`.
 
-## 6. EMI Auto-Toggle Flow
+## 6. Template Update Cascade
+When a spend template's `name` or `type` is updated, the change cascades to all existing
+monthly entries for that template inside a single transaction. Entry `cost` is intentionally
+not cascaded — it is a point-in-time value that may have diverged from the template.
+
+```mermaid
+flowchart TD
+  A[User edits template name or type] --> B[updateSpendTemplate called]
+  B --> C[Update spendTemplates record]
+  C --> D[Modify all monthlySpendEntries where templateId matches]
+  D --> E[Commit transaction]
+  E --> F[requestAutoSync]
+```
+
+## 7. EMI Auto-Toggle Flow
 ```mermaid
 flowchart TD
   A[Monthly entry loaded] --> B{Template has EMI?}
@@ -132,7 +146,29 @@ flowchart TD
   E -- No --> F[Set status to Spent]
 ```
 
-## 7. Theming Flow
+## 8. PWA Update Flow
+Service worker uses `registerType: 'prompt'` (vite-plugin-pwa). The new SW installs in the
+background but waits before activating. `useRegisterSW` exposes `needRefresh`; when true, a
+banner appears prompting the user to refresh. Calling `updateServiceWorker(true)` activates
+the waiting SW and reloads the page.
+
+This pattern is preferred over `autoUpdate` because iOS home-screen PWAs do not reliably
+honour the automatic `location.reload()` that `autoUpdate` triggers on controller change.
+
+```mermaid
+flowchart TD
+  A[User opens PWA] --> B[Browser fetches sw.js]
+  B --> C{sw.js changed?}
+  C -- No --> D[App served from cache]
+  C -- Yes --> E[New SW installs, waits]
+  E --> F[needRefresh = true]
+  F --> G[Update banner shown]
+  G --> H[User taps Refresh]
+  H --> I[updateServiceWorker called]
+  I --> J[New SW activates, page reloads]
+```
+
+## 9. Theming Flow
 ```mermaid
 flowchart TD
   I[App startup] --> L[Read localStorage theme mode]
@@ -150,7 +186,7 @@ flowchart TD
   H --> S[User can override in Settings]
 ```
 
-## 8. Directory Strategy
+## 10. Directory Strategy
 Current baseline structure:
 - `src/app` for shell, bootstrap, and route registration
 - `src/features/dashboard` for dashboard route UI
@@ -168,13 +204,13 @@ Ongoing strategy:
 - Keep cross-feature primitives in `src/shared/*`.
 - Propose and confirm large structural refactors before execution.
 
-## 9. Design Constraints
+## 11. Design Constraints
 - Local-first operation with IndexedDB persistence.
 - Mobile-first responsive behavior with desktop support.
 - PWA-first deployment model; optional Capacitor packaging later.
 - Keep model and storage boundaries explicit so backup/restore and future sync remain straightforward.
 
-## 10. Backup Format
+## 12. Backup Format
 - Export format: JSON file with `backupVersion: 1`.
 - Payload includes: `families`, `persons`, `spendTemplates`, `monthlySpendEntries`.
 - Import path validates JSON schema before restore.

@@ -26,8 +26,9 @@ Primary goals:
 ### 2.3 UX Strategy
 - Mobile-first UI that scales to desktop.
 - Fast month switching and low-friction status updates.
-- Clear visual summary (monthly total + category split pie chart).
+- Clear visual summary (budget breakdown bar chart + category pie chart + per-entry impact score).
 - Built-in theme support for light and dark modes.
+- PWA-installable with explicit in-app update prompt for home-screen users.
 
 ## 3. Scope
 ### 3.1 In Scope (MVP)
@@ -36,7 +37,9 @@ Primary goals:
 - Monthly spend instances generated from templates.
 - Status tracking per month: `Spent`, `Not Yet`, `Skip`.
 - EMI auto-marking logic by deduction day.
-- Monthly total expenditure.
+- Budget breakdown bar chart (Budget / Spent / Pending) merged with monthly total.
+- Spend card budget impact score (1–10 relative to filtered entries) with color indicator.
+- Spend card sort controls (Cost ↓, Cost ↑, Category, Pending First).
 - Pie chart by spend category/type.
 - Theming: `Light`, `Dark`, and `Device` preference mode.
 - Responsive layouts for phone and desktop browser.
@@ -87,9 +90,12 @@ Each spend template supports:
 - User can still manually override status.
 
 ### 4.5 Dashboard and Reporting
-- Show total expenditure for selected month.
-- Show category-wise pie chart for selected month.
-- Expenditure calculations include entries marked `Spent` only (default rule for MVP).
+- Budget Breakdown panel shows Budget, Spent, and Pending totals as stat cards and a grouped bar chart.
+  - Budget = sum of all entry costs; Spent = `Spent` entries only; Pending = `Not Yet` entries only.
+- Category pie chart shows spend distribution for `Spent` entries only.
+- Each spend card displays a budget impact score from 1–10, derived by min-max normalising entry costs within the current filter (family or person). Score 10 = highest cost; score 1 = lowest. Color gradient: yellow (low) → dark red (high).
+- Spend cards can be sorted by: Cost ↓, Cost ↑, Category, Pending First. Default sort is Category.
+- All dashboard views respect the active person filter (Entire Family or per-person).
 
 ### 4.6 Backup and Restore
 - User can export all app data to file.
@@ -211,11 +217,12 @@ Each spend template supports:
 | Cloudflare Pages deployment setup | - [x] |
 | Firebase project setup (Auth + Firestore) | - [x] |
 | Google Sign-In integration | - [x] |
-| Firestore security rules for internal app usage | - [ ] |
+| Firestore security rules for internal app usage | - [x] |
 | IndexedDB <-> Firestore sync engine | - [x] |
 | Manual sync controls (`Sync now`, optional auto-sync toggle) | - [x] |
 | Dashboard spend-card editing (`cost`, `quantity`) | - [x] |
 | Dashboard person-level filter with family default scope | - [x] |
 | Consistent category color mapping (chart + spend ribbons) | - [x] |
 | Modal-based add/edit flows (Spends + Dashboard) | - [x] |
+| PWA update prompt (service worker `prompt` mode + in-app refresh banner) | - [x] |
 | Cross-device sync validation (20-30 internal users target) | - [ ] |

@@ -15,7 +15,8 @@ SpendNest is a responsive, local-first family budget tracker built with React + 
 - Spend template management
 - Monthly spend instances with status tracking (`Spent`, `Not Yet`, `Skip`)
 - EMI auto-toggle behavior by deduction date
-- Monthly total and category pie chart
+- Budget breakdown bar chart (Budget / Spent / Pending) with per-entry impact scores (1–10) and sort controls
+- Category pie chart by spend type
 - Light/Dark/Device theming with persistence
 - Backup export/import with validation
 
@@ -56,6 +57,8 @@ npm run lint
 
 ## PWA
 Production build includes service worker + manifest for offline shell behavior.
+Uses `prompt` update mode: when a new version is deployed, an in-app banner appears
+letting the user explicitly refresh — reliable on both Android and iOS home-screen installs.
 
 ## Cloudflare Pages Deployment
 Deployment guide: `docs/CLOUDFLARE_PAGES.md`.

@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { applyTheme, watchDeviceTheme } from '../features/theme/theme.runtime'
 import { appDb } from '../shared/db/appDb'
 import { useAppStore } from '../shared/state/useAppStore'
+import { useAppUpdate } from './useAppUpdate'
 import './app-shell.css'
 
 const navItems = [
@@ -38,6 +39,7 @@ export function AppShell() {
   const authUser = useAppStore((state) => state.authUser)
   const [selectedFamilyName, setSelectedFamilyName] = useState<string | null>(null)
   const monthPickerRef = useRef<HTMLInputElement | null>(null)
+  const { needRefresh, updateServiceWorker } = useAppUpdate()
 
   useEffect(() => {
     applyTheme(themeMode)
@@ -108,6 +110,7 @@ export function AppShell() {
   }
 
   return (
+    <>
     <div className="app-shell">
       <header className="app-header">
         <div>
@@ -181,5 +184,19 @@ export function AppShell() {
         </main>
       </div>
     </div>
+
+    {needRefresh && (
+      <div className="app-update-banner">
+        <span>New version available</span>
+        <button
+          type="button"
+          className="app-update-btn"
+          onClick={() => void updateServiceWorker(true)}
+        >
+          Refresh
+        </button>
+      </div>
+    )}
+    </>
   )
 }

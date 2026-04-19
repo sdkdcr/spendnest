@@ -29,7 +29,7 @@ export function MonthlyStatusPanel({
   onSetStatus,
   onUpdateEntryDetails,
 }: MonthlyStatusPanelProps) {
-  const [sortKey, setSortKey] = useState<EntrySortKey>('cost-desc')
+  const [sortKey, setSortKey] = useState<EntrySortKey>('category')
   const [editingEntryId, setEditingEntryId] = useState<number | null>(null)
 
   const scores = useMemo(() => computeEntryScores(entries), [entries])

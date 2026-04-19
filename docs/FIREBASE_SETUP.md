@@ -67,28 +67,36 @@ Notes:
 
 ## 6. Data Model (Firestore)
 
-For current internal-user scope, use user-isolated documents.
+The implemented model uses a **shared-family** structure, not per-user isolation.
+Access is granted to any signed-in user whose email appears in the family's `memberEmails` array.
 
 Collections:
 
-- `users/{uid}/families/{familyId}`
-- `users/{uid}/persons/{personId}`
-- `users/{uid}/spendTemplates/{templateId}`
-- `users/{uid}/monthlySpendEntries/{entryId}`
-- `users/{uid}/appSettings/default`
+```
+families/{cloudFamilyId}                         ← family document
+families/{cloudFamilyId}/persons/{personId}
+families/{cloudFamilyId}/spendTemplates/{templateId}
+families/{cloudFamilyId}/monthlySpendEntries/{entryId}
+```
 
-Document fields:
+`cloudFamilyId` format: `family_{ownerUid}_{localFamilyId}` — generated on first push, stored locally in IndexedDB.
 
-- Keep existing domain fields.
-- Include sync metadata:
-  - `updatedAt` (ISO string or Firestore timestamp)
-  - `deleted` (boolean, for soft-delete/tombstone if needed)
-  - `lastSyncedAt` (optional, client bookkeeping)
+Family document fields (in addition to domain fields):
+
+- `cloudFamilyId` (string) — mirrors the document ID
+- `ownerUid` (string) — Firebase UID of the user who first created the family in the cloud
+- `memberEmails` (string[]) — all emails that may access this family; merged on every push
+- `updatedAt` (ISO string) — used for last-write-wins conflict resolution
+
+Subcollection document fields:
+
+- All existing domain fields (id, familyId, etc.)
+- `updatedAt` (ISO string) — conflict resolution key
 
 ID strategy:
 
-- Prefer deterministic IDs generated on client (UUID/ULID) instead of auto IDs.
-- Keep IDs stable across devices for simpler merge and upsert.
+- Subcollection documents use the local numeric `id` (as a string) as the Firestore document ID.
+- This keeps IDs stable across devices and enables simple upsert semantics.
 
 ## 7. Security Rules (Shared Family by Email)
 
