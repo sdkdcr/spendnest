@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { BudgetBreakdownChart } from './BudgetBreakdownChart'
 import { CategoryPieChart } from './CategoryPieChart'
 import { MonthlyStatusPanel } from './MonthlyStatusPanel'
 import { buildCategoryColorMap } from './category-colors'
@@ -56,18 +57,20 @@ export function DashboardPage() {
     return entries.filter((entry) => entry.personId === effectiveSelectedPersonId)
   }, [entries, effectiveSelectedPersonId])
 
-  const monthlySpentTotal = useMemo(() => {
-    return visibleEntries.reduce((total, entry) => {
-      if (entry.status !== 'Spent') {
-        return total
-      }
-
-      return total + entry.cost
-    }, 0)
-  }, [visibleEntries])
-
   const spentEntriesCount = useMemo(() => {
     return visibleEntries.filter((entry) => entry.status === 'Spent').length
+  }, [visibleEntries])
+
+  const budgetBreakdown = useMemo(() => {
+    return visibleEntries.reduce(
+      (acc, entry) => {
+        acc.budget += entry.cost
+        if (entry.status === 'Spent') acc.spent += entry.cost
+        if (entry.status === 'Not Yet') acc.pending += entry.cost
+        return acc
+      },
+      { budget: 0, spent: 0, pending: 0 },
+    )
   }, [visibleEntries])
 
   const categoryTotals = useMemo(() => {
@@ -94,90 +97,89 @@ export function DashboardPage() {
   return (
     <section>
       <h2>Dashboard</h2>
-      <p>Monthly totals and category pie chart are now enabled for `Spent` entries.</p>
+      {selectedFamilyId === null ? (
+        <p className="families-help">Select a family to view your budget.</p>
+      ) : (
+        <>
+          <div className="dashboard-filter-row">
+            <label htmlFor="dashboard-person-filter">View scope</label>
+            <select
+              id="dashboard-person-filter"
+              className="dashboard-filter-select"
+              value={effectiveSelectedPersonId === null ? '' : String(effectiveSelectedPersonId)}
+              onChange={(event) => {
+                const value = event.currentTarget.value
+                setSelectedPersonId(value ? Number(value) : null)
+              }}
+            >
+              <option value="">Entire Family</option>
+              {familyPersons.map((person) => {
+                if (person.id === undefined) {
+                  return null
+                }
 
-      {selectedFamilyId !== null ? (
-        <div className="dashboard-filter-row">
-          <label htmlFor="dashboard-person-filter">View scope</label>
-          <select
-            id="dashboard-person-filter"
-            className="dashboard-filter-select"
-            value={effectiveSelectedPersonId === null ? '' : String(effectiveSelectedPersonId)}
-            onChange={(event) => {
-              const value = event.currentTarget.value
-              setSelectedPersonId(value ? Number(value) : null)
+                return (
+                  <option key={person.id} value={person.id}>
+                    {person.name}
+                  </option>
+                )
+              })}
+            </select>
+          </div>
+
+          <div className="dashboard-chart-panel">
+            <h3>Budget Breakdown</h3>
+
+            {generationError ? (
+              <p className="families-error">{generationError}</p>
+            ) : (
+              <div className="dashboard-budget-stats">
+                <div className="dashboard-budget-stat">
+                  <span className="dashboard-budget-stat-value">{budgetBreakdown.budget.toFixed(2)}</span>
+                  <span className="dashboard-budget-stat-label">Budget</span>
+                </div>
+                <div className="dashboard-budget-stat">
+                  <span className="dashboard-budget-stat-value dashboard-stat-spent">{budgetBreakdown.spent.toFixed(2)}</span>
+                  <span className="dashboard-budget-stat-label">Spent · {spentEntriesCount}</span>
+                </div>
+                <div className="dashboard-budget-stat">
+                  <span className="dashboard-budget-stat-value dashboard-stat-pending">{budgetBreakdown.pending.toFixed(2)}</span>
+                  <span className="dashboard-budget-stat-label">Pending</span>
+                </div>
+              </div>
+            )}
+
+            <BudgetBreakdownChart data={budgetBreakdown} monthKey={selectedMonthKey} />
+
+            <p className="families-help dashboard-budget-footnote">
+              {isSyncing
+                ? 'Updating entries...'
+                : result
+                  ? `${result.eligibleCount} entries · ${result.createdCount > 0 ? `${result.createdCount} new` : 'up to date'}`
+                  : ''}
+            </p>
+          </div>
+
+          <div className="dashboard-chart-panel">
+            <h3>Category Spend Split</h3>
+            <CategoryPieChart data={categoryTotals} colorByType={categoryColorByType} />
+          </div>
+
+          <MonthlyStatusPanel
+            entries={visibleEntries}
+            personNamesById={personNamesById}
+            categoryColorByType={categoryColorByType}
+            isLoading={isLoadingEntries || isSyncing}
+            errorMessage={statusError}
+            onSetStatus={(entryId, status) => {
+              void setEntryStatus(entryId, status)
             }}
-          >
-            <option value="">Entire Family</option>
-            {familyPersons.map((person) => {
-              if (person.id === undefined) {
-                return null
-              }
-
-              return (
-                <option key={person.id} value={person.id}>
-                  {person.name}
-                </option>
-              )
-            })}
-          </select>
-        </div>
-      ) : null}
-
-      <div className="dashboard-sync-panel">
-        <h3>Monthly Entry Generation</h3>
-
-        {selectedFamilyId === null ? (
-          <p className="families-help">
-            Select a family to generate monthly entries.
-          </p>
-        ) : isSyncing ? (
-          <p className="families-help">Syncing monthly entries...</p>
-        ) : generationError ? (
-          <p className="families-error">{generationError}</p>
-        ) : result ? (
-          <p className="families-help">
-            Month: {selectedMonthKey} | Templates: {result.templateCount} |
-            Eligible: {result.eligibleCount} | Existing: {result.existingCount} |
-            Created: {result.createdCount}
-          </p>
-        ) : (
-          <p className="families-help">No sync result available yet.</p>
-        )}
-      </div>
-
-      {selectedFamilyId !== null ? (
-        <div className="dashboard-total-panel">
-          <h3>Monthly Total Expenditure</h3>
-          <p className="dashboard-total-value">{monthlySpentTotal.toFixed(2)}</p>
-          <p className="families-help">
-            Based on `Spent` entries only | Count: {spentEntriesCount}
-          </p>
-        </div>
-      ) : null}
-
-      {selectedFamilyId !== null ? (
-        <div className="dashboard-chart-panel">
-          <h3>Category Spend Split</h3>
-          <CategoryPieChart data={categoryTotals} colorByType={categoryColorByType} />
-        </div>
-      ) : null}
-
-      {selectedFamilyId !== null ? (
-        <MonthlyStatusPanel
-          entries={visibleEntries}
-          personNamesById={personNamesById}
-          categoryColorByType={categoryColorByType}
-          isLoading={isLoadingEntries || isSyncing}
-          errorMessage={statusError}
-          onSetStatus={(entryId, status) => {
-            void setEntryStatus(entryId, status)
-          }}
-          onUpdateEntryDetails={(entryId, patch) => {
-            void updateEntryDetails(entryId, patch)
-          }}
-        />
-      ) : null}
+            onUpdateEntryDetails={(entryId, patch) => {
+              void updateEntryDetails(entryId, patch)
+            }}
+          />
+        </>
+      )}
     </section>
   )
 }

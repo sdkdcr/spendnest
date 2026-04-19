@@ -105,8 +105,7 @@
 }
 
 .app-nav-detail,
-.app-nav-family,
-.app-nav-month {
+.app-nav-family {
   margin: 0;
   font-size: 0.84rem;
   color: var(--text-muted);
@@ -131,6 +130,30 @@
     border-left: 0;
     border-right: 0;
     box-shadow: none;
+    gap: 0.45rem;
+  }
+
+  .app-nav-overview {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.15rem 0.55rem;
+  }
+
+  .app-nav-kicker {
+    display: none;
+  }
+
+  .app-nav-detail {
+    display: none;
+  }
+
+  .app-nav-user {
+    font-size: 0.88rem;
+  }
+
+  .app-nav-family {
+    font-size: 0.82rem;
   }
 }
 

@@ -158,7 +158,6 @@ export function AppShell() {
             <p className="app-nav-user">{authSummary}</p>
             {authDetail && <p className="app-nav-detail">{authDetail}</p>}
             <p className="app-nav-family">Family: {selectedFamilyName ?? 'Not selected'}</p>
-            <p className="app-nav-month">Month: {formatMonthLabel(selectedMonthKey)}</p>
           </div>
 
           <nav className="app-nav-links" aria-label="Primary">

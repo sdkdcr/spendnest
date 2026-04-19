@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { MonthlySpendEntry, MonthlySpendStatus } from '../../shared/domain/types'
 import { Modal } from '../../shared/ui/Modal'
 import { getCategoryColor } from './category-colors'
+import { EntrySortBar, sortEntries, type EntrySortKey } from './EntrySortBar'
+import { computeEntryScores, scoreToColor, scoreToTextColor } from './entry-score'
 
 interface MonthlyStatusPanelProps {
   entries: MonthlySpendEntry[]
@@ -27,7 +29,11 @@ export function MonthlyStatusPanel({
   onSetStatus,
   onUpdateEntryDetails,
 }: MonthlyStatusPanelProps) {
+  const [sortKey, setSortKey] = useState<EntrySortKey>('cost-desc')
   const [editingEntryId, setEditingEntryId] = useState<number | null>(null)
+
+  const scores = useMemo(() => computeEntryScores(entries), [entries])
+  const sortedEntries = useMemo(() => sortEntries(entries, sortKey), [entries, sortKey])
   const [draftCost, setDraftCost] = useState('')
   const [draftQuantity, setDraftQuantity] = useState('')
   const editingEntry =
@@ -77,70 +83,86 @@ export function MonthlyStatusPanel({
       ) : entries.length === 0 ? (
         <p className="families-help">No monthly entries available for this month.</p>
       ) : (
-        <ul className="dashboard-entry-list">
-          {entries.map((entry) => {
-            const entryId = entry.id
-            if (entryId === undefined) {
-              return null
-            }
+        <>
+          <EntrySortBar value={sortKey} onChange={setSortKey} />
+          <ul className="dashboard-entry-list">
+            {sortedEntries.map((entry) => {
+              const entryId = entry.id
+              if (entryId === undefined) {
+                return null
+              }
 
-            return (
-              <li className="dashboard-entry-item" key={entryId}>
-                <span
-                  className="dashboard-entry-ribbon"
-                  style={{ backgroundColor: getCategoryColor(entry.type, categoryColorByType) }}
-                  aria-hidden="true"
-                />
-                <div className="dashboard-entry-row">
-                  <div>
-                    <p className="dashboard-entry-name">{entry.name}</p>
-                    <p className="dashboard-entry-meta">
-                      {entry.type} | Cost: {entry.cost} | Qty: {entry.quantity}
-                    </p>
-                    <p className="dashboard-entry-meta">
-                      Person:{' '}
-                      {entry.personId !== undefined
-                        ? personNamesById[entry.personId] ?? 'Unknown'
-                        : 'Unassigned'}
-                    </p>
-                  </div>
+              const score = scores.get(entryId) ?? 1
 
-                  <div className="dashboard-entry-actions">
-                    <div className="dashboard-status-group" role="group" aria-label="Status">
-                      {statusOptions.map((statusOption) => (
-                        <button
-                          key={statusOption}
-                          type="button"
-                          className={
-                            entry.status === statusOption
-                              ? 'dashboard-status-btn dashboard-status-btn-active'
-                              : 'dashboard-status-btn'
-                          }
-                          onClick={() => {
-                            onSetStatus(entryId, statusOption)
+              return (
+                <li className="dashboard-entry-item" key={entryId}>
+                  <span
+                    className="dashboard-entry-ribbon"
+                    style={{ backgroundColor: getCategoryColor(entry.type, categoryColorByType) }}
+                    aria-hidden="true"
+                  />
+                  <div className="dashboard-entry-row">
+                    <div>
+                      <div className="dashboard-entry-name-row">
+                        <p className="dashboard-entry-name">{entry.name}</p>
+                        <span
+                          className="dashboard-score-badge"
+                          style={{
+                            backgroundColor: scoreToColor(score),
+                            color: scoreToTextColor(score),
                           }}
+                          title={`Budget impact score: ${score}/10`}
                         >
-                          {statusOption}
-                        </button>
-                      ))}
+                          {score}/10
+                        </span>
+                      </div>
+                      <p className="dashboard-entry-meta">
+                        {entry.type} | Cost: {entry.cost} | Qty: {entry.quantity}
+                      </p>
+                      <p className="dashboard-entry-meta">
+                        Person:{' '}
+                        {entry.personId !== undefined
+                          ? personNamesById[entry.personId] ?? 'Unknown'
+                          : 'Unassigned'}
+                      </p>
                     </div>
 
-                    <button
-                      type="button"
-                      className="dashboard-status-btn"
-                      onClick={() => {
-                        startEditing(entry)
-                      }}
-                    >
-                      Edit
-                    </button>
-                  </div>
-                </div>
+                    <div className="dashboard-entry-actions">
+                      <div className="dashboard-status-group" role="group" aria-label="Status">
+                        {statusOptions.map((statusOption) => (
+                          <button
+                            key={statusOption}
+                            type="button"
+                            className={
+                              entry.status === statusOption
+                                ? 'dashboard-status-btn dashboard-status-btn-active'
+                                : 'dashboard-status-btn'
+                            }
+                            onClick={() => {
+                              onSetStatus(entryId, statusOption)
+                            }}
+                          >
+                            {statusOption}
+                          </button>
+                        ))}
+                      </div>
 
-              </li>
+                      <button
+                        type="button"
+                        className="dashboard-status-btn"
+                        onClick={() => {
+                          startEditing(entry)
+                        }}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  </div>
+                </li>
             )
-          })}
-        </ul>
+            })}
+          </ul>
+        </>
       )}
 
       {editingEntry ? (
