@@ -31,6 +31,7 @@ export interface SpendTemplate {
   emiAmount?: number
   deductionDayOfMonth?: number
   emiEndMonth?: string
+  startMonth?: string
   createdAt: string
   updatedAt: string
 }

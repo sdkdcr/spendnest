@@ -1,8 +1,10 @@
+import { getCategoryColor } from '../dashboard/category-colors'
 import type { SpendTemplate } from '../../shared/domain/types'
 
 interface SpendTemplateListProps {
   spendTemplates: SpendTemplate[]
   personNamesById: Record<number, string>
+  categoryColorByType: Record<string, string>
   onEdit: (template: SpendTemplate) => void
   onDelete: (templateId: number) => void
 }
@@ -18,6 +20,7 @@ function formatCurrency(amount: number): string {
 export function SpendTemplateList({
   spendTemplates,
   personNamesById,
+  categoryColorByType,
   onEdit,
   onDelete,
 }: SpendTemplateListProps) {
@@ -50,14 +53,20 @@ export function SpendTemplateList({
 
         return (
           <li className="spend-template-item" key={templateId}>
+            <span
+              className="spend-ribbon-category"
+              style={{ backgroundColor: getCategoryColor(template.type, categoryColorByType), color: '#fff' }}
+            >
+              {template.type || '—'}
+            </span>
+            <span className="spend-ribbon-frequency">{template.frequency}</span>
+
             <div className="spend-template-header">
               <p className="spend-template-name">{template.name}</p>
               <p className="spend-template-amount">{formatCurrency(template.cost)}</p>
             </div>
 
             <div className="spend-template-chip-row">
-              <span className="spend-template-chip">{template.type}</span>
-              <span className="spend-template-chip">{template.frequency}</span>
               <span className="spend-template-chip">{personTag}</span>
             </div>
 
@@ -70,6 +79,13 @@ export function SpendTemplateList({
                 <span className="spend-template-meta-key">EMI</span>
                 <span>{emiLabel}</span>
               </p>
+              {(template.frequency === 'Quarterly' || template.frequency === 'Annually') &&
+                template.startMonth && (
+                  <p className="spend-template-meta">
+                    <span className="spend-template-meta-key">Cycle from</span>
+                    <span>{template.startMonth}</span>
+                  </p>
+                )}
             </div>
 
             <div className="spend-template-actions-row">

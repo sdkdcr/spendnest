@@ -64,6 +64,10 @@ function getRecordId(record: { id?: number }): string | null {
   return String(record.id)
 }
 
+function omitUndefined(record: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(record).filter(([, v]) => v !== undefined))
+}
+
 async function readFamilySubCollection<T>(
   cloudFamilyId: string,
   collectionName: 'persons' | 'spendTemplates' | 'monthlySpendEntries',
@@ -101,7 +105,7 @@ async function upsertSubCollection<T extends { id?: number }>(
     const chunk = writeTargets.slice(index, index + WRITE_BATCH_LIMIT)
 
     for (const entry of chunk) {
-      batch.set(entry.ref, entry.record, {
+      batch.set(entry.ref, omitUndefined(entry.record as Record<string, unknown>), {
         merge: true,
       })
     }

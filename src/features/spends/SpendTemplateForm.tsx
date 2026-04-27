@@ -9,6 +9,7 @@ interface SpendTemplateFormProps {
   disabled?: boolean
   hideTitle?: boolean
   persons: Person[]
+  knownTypes: string[]
   initialDraft?: SpendTemplateDraft
   onSubmit: (draft: SpendTemplateDraft) => Promise<void>
   onCancel?: () => void
@@ -31,6 +32,7 @@ const defaultDraft: SpendTemplateDraft = {
   emiAmount: undefined,
   deductionDayOfMonth: undefined,
   emiEndMonth: undefined,
+  startMonth: undefined,
 }
 
 export function SpendTemplateForm({
@@ -39,6 +41,7 @@ export function SpendTemplateForm({
   disabled = false,
   hideTitle = false,
   persons,
+  knownTypes,
   initialDraft,
   onSubmit,
   onCancel,
@@ -61,6 +64,7 @@ export function SpendTemplateForm({
       emiAmount: draft.emiAmount,
       deductionDayOfMonth: draft.deductionDayOfMonth,
       emiEndMonth: draft.emiEndMonth || undefined,
+      startMonth: draft.startMonth || undefined,
     }
 
     const hasInvalidEmiAmount =
@@ -127,22 +131,24 @@ export function SpendTemplateForm({
         })}
       </select>
 
-      <label htmlFor={`${title}-type`}>Type</label>
+      <label htmlFor={`${title}-type`}>Category</label>
       <input
         id={`${title}-type`}
         className="families-input"
+        list={`${title}-type-list`}
         value={draft.type}
         onChange={(event) => {
           const value = event.currentTarget.value
-
-          setDraft((currentDraft) => ({
-            ...currentDraft,
-            type: value,
-          }))
+          setDraft((currentDraft) => ({ ...currentDraft, type: value }))
         }}
-        placeholder="e.g. Utility"
+        placeholder="e.g. Utilities"
         disabled={disabled || isSubmitting}
       />
+      <datalist id={`${title}-type-list`}>
+        {knownTypes.map((category) => (
+          <option key={category} value={category} />
+        ))}
+      </datalist>
 
       <label htmlFor={`${title}-name`}>Name</label>
       <input
@@ -217,6 +223,26 @@ export function SpendTemplateForm({
         placeholder="e.g. 1 month / 50 L"
         disabled={disabled || isSubmitting}
       />
+
+      {(draft.frequency === 'Quarterly' || draft.frequency === 'Annually') && (
+        <>
+          <label htmlFor={`${title}-start-month`}>Payment Month (cycle anchor, Optional)</label>
+          <input
+            id={`${title}-start-month`}
+            className="families-input"
+            type="month"
+            value={draft.startMonth ?? ''}
+            onChange={(event) => {
+              const value = event.currentTarget.value
+              setDraft((currentDraft) => ({
+                ...currentDraft,
+                startMonth: value || undefined,
+              }))
+            }}
+            disabled={disabled || isSubmitting}
+          />
+        </>
+      )}
 
       <label htmlFor={`${title}-emi-amount`}>EMI Amount (Optional)</label>
       <input

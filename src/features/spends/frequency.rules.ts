@@ -26,23 +26,19 @@ function monthDiff(from: YearMonth, to: YearMonth): number {
   return (to.year - from.year) * 12 + (to.month - from.month)
 }
 
-function getTemplateStartMonth(template: SpendTemplate): YearMonth | null {
-  return parseYearMonth(template.createdAt.slice(0, 7))
-}
-
 export function isTemplateEligibleForMonth(
   template: SpendTemplate,
   monthKey: string,
 ): boolean {
   const targetMonth = parseYearMonth(monthKey)
-  const startMonth = getTemplateStartMonth(template)
+  const createdAtMonth = parseYearMonth(template.createdAt.slice(0, 7))
 
-  if (!targetMonth || !startMonth) {
+  if (!targetMonth || !createdAtMonth) {
     return false
   }
 
-  const elapsedMonths = monthDiff(startMonth, targetMonth)
-  if (elapsedMonths < 0) {
+  // Never generate entries before the template was created
+  if (monthDiff(createdAtMonth, targetMonth) < 0) {
     return false
   }
 
@@ -55,9 +51,16 @@ export function isTemplateEligibleForMonth(
     case 'AdHoc':
       return true
     case 'Quarterly':
-      return elapsedMonths % 3 === 0
-    case 'Annually':
-      return elapsedMonths % 12 === 0
+    case 'Annually': {
+      // Use startMonth as cycle anchor if set, otherwise fall back to createdAt
+      const anchorRaw = template.startMonth ?? template.createdAt.slice(0, 7)
+      const anchorMonth = parseYearMonth(anchorRaw)
+      if (!anchorMonth) {
+        return false
+      }
+      const elapsed = monthDiff(anchorMonth, targetMonth)
+      return template.frequency === 'Quarterly' ? elapsed % 3 === 0 : elapsed % 12 === 0
+    }
     default:
       return false
   }
