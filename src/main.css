@@ -9,6 +9,12 @@
   --border: #d9dce4;
   --input-border: #c8cedc;
   --shadow: 0 8px 20px rgba(25, 35, 59, 0.08);
+  --danger: #c62828;
+  --danger-surface: #fff5f5;
+  --danger-border: #f5c6c6;
+  --danger-contrast: #ffffff;
+  --warning: #92400e;
+  --warning-border: #d97706;
 
   font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -31,6 +37,12 @@
   --border: #263249;
   --input-border: #33415d;
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --danger: #ef5350;
+  --danger-surface: #2d1010;
+  --danger-border: #5c2020;
+  --danger-contrast: #ffffff;
+  --warning: #fbbf24;
+  --warning-border: #92400e;
 }
 
 * {

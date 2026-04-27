@@ -34,10 +34,19 @@ export function SpendTemplateList({
             ? personNamesById[template.personId] ?? 'Unknown person'
             : 'Unassigned'
 
-        const emiLabel =
-          template.emiAmount !== undefined || template.deductionDayOfMonth !== undefined
-            ? `EMI ${template.emiAmount !== undefined ? formatCurrency(template.emiAmount) : '-'} | Day ${template.deductionDayOfMonth ?? '-'}`
-            : 'No EMI'
+        const hasEmi =
+          template.emiAmount !== undefined ||
+          template.deductionDayOfMonth !== undefined ||
+          template.emiEndMonth !== undefined
+        const emiLabel = hasEmi
+          ? [
+              `EMI ${template.emiAmount !== undefined ? formatCurrency(template.emiAmount) : '-'}`,
+              `Day ${template.deductionDayOfMonth ?? '-'}`,
+              template.emiEndMonth ? `Until ${template.emiEndMonth}` : null,
+            ]
+              .filter(Boolean)
+              .join(' | ')
+          : 'No EMI'
 
         return (
           <li className="spend-template-item" key={templateId}>

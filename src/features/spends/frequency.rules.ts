@@ -46,6 +46,10 @@ export function isTemplateEligibleForMonth(
     return false
   }
 
+  if (template.emiEndMonth !== undefined && monthKey > template.emiEndMonth) {
+    return false
+  }
+
   switch (template.frequency) {
     case 'Monthly':
     case 'AdHoc':

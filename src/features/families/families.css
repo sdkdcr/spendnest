@@ -45,6 +45,11 @@
   color: var(--accent-contrast);
 }
 
+.families-button-delete {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
 .families-list {
   list-style: none;
   padding: 0;

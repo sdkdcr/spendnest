@@ -237,7 +237,7 @@ export function FamiliesPage() {
                       Rename
                     </button>
                     <button
-                      className="families-button"
+                      className="families-button families-button-delete"
                       type="button"
                       onClick={() => {
                         void handleDeleteFamily(familyId)

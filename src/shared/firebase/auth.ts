@@ -4,6 +4,7 @@ import {
   onAuthStateChanged,
   signInWithPopup,
   signOut,
+  type AuthError,
   type User,
 } from 'firebase/auth'
 import { getFirebaseApp, isFirebaseConfigured } from './firebaseApp'
@@ -65,4 +66,27 @@ export async function signOutCurrentUser(): Promise<void> {
 
   const auth = getAuth(getFirebaseApp())
   await signOut(auth)
+}
+
+export async function deleteCurrentUser(): Promise<void> {
+  if (!isFirebaseConfigured) {
+    return
+  }
+
+  const auth = getAuth(getFirebaseApp())
+  const user = auth.currentUser
+  if (!user) {
+    throw new Error('No signed-in user to delete.')
+  }
+
+  try {
+    await user.delete()
+  } catch (error) {
+    if ((error as AuthError).code === 'auth/requires-recent-login') {
+      throw new Error(
+        'Please sign out and sign back in before deleting your account.',
+      )
+    }
+    throw error
+  }
 }

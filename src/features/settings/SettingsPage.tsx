@@ -18,6 +18,9 @@ export function SettingsPage() {
   const signInWithGoogle = useAppStore((state) => state.signInWithGoogle)
   const signOut = useAppStore((state) => state.signOut)
   const syncNow = useAppStore((state) => state.syncNow)
+  const repairCloud = useAppStore((state) => state.repairCloud)
+  const clearSpends = useAppStore((state) => state.clearSpends)
+  const deregister = useAppStore((state) => state.deregister)
   const autoSyncEnabled = useAppStore((state) => state.autoSyncEnabled)
   const setAutoSyncEnabled = useAppStore((state) => state.setAutoSyncEnabled)
   const isSyncing = syncStatus === 'syncing'
@@ -116,6 +119,23 @@ export function SettingsPage() {
                     {isSyncing ? 'Syncing...' : 'Sync now'}
                   </button>
                   <button
+                    className="settings-button-danger-outline"
+                    type="button"
+                    disabled={!authReady || isSyncing}
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          'This will delete duplicate records from cloud and overwrite it with your local data. Continue?',
+                        )
+                      ) {
+                        void repairCloud()
+                      }
+                    }}
+                  >
+                    Repair cloud data
+                  </button>
+                  <button
+                    className="settings-button-warning"
                     type="button"
                     disabled={!authReady}
                     onClick={() => {
@@ -132,6 +152,47 @@ export function SettingsPage() {
       </div>
 
       <BackupPanel />
+
+      {firebaseEnabled && authUser && (
+        <div className="settings-danger-panel">
+          <h3>Danger zone</h3>
+          <p className="field-help">These actions are irreversible. Proceed with caution.</p>
+          <div className="settings-auth-actions">
+            <button
+              className="settings-button-danger"
+              type="button"
+              disabled={isSyncing}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    'This will permanently delete all spend templates and monthly transactions from local and cloud. Families and persons will be kept. Continue?',
+                  )
+                ) {
+                  void clearSpends()
+                }
+              }}
+            >
+              Clear all spends &amp; transactions
+            </button>
+            <button
+              className="settings-button-danger"
+              type="button"
+              disabled={isSyncing}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    'This will permanently delete ALL data (families, persons, spends) from local and cloud, and delete your account. This cannot be undone. Continue?',
+                  )
+                ) {
+                  void deregister()
+                }
+              }}
+            >
+              De-register &amp; delete account
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

@@ -16,6 +16,7 @@ export interface SpendTemplateDraft {
   quantity: string
   emiAmount?: number
   deductionDayOfMonth?: number
+  emiEndMonth?: string
 }
 
 export async function listSpendTemplatesByFamily(
@@ -45,6 +46,7 @@ export async function createSpendTemplate(
     quantity: draft.quantity,
     emiAmount: draft.emiAmount,
     deductionDayOfMonth: draft.deductionDayOfMonth,
+    emiEndMonth: draft.emiEndMonth,
     createdAt: timestamp,
     updatedAt: timestamp,
   }
@@ -70,6 +72,7 @@ export async function updateSpendTemplate(
       quantity: draft.quantity,
       emiAmount: draft.emiAmount,
       deductionDayOfMonth: draft.deductionDayOfMonth,
+      emiEndMonth: draft.emiEndMonth,
       updatedAt: timestamp,
     })
     await appDb.monthlySpendEntries

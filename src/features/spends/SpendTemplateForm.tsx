@@ -30,6 +30,7 @@ const defaultDraft: SpendTemplateDraft = {
   quantity: '',
   emiAmount: undefined,
   deductionDayOfMonth: undefined,
+  emiEndMonth: undefined,
 }
 
 export function SpendTemplateForm({
@@ -59,6 +60,7 @@ export function SpendTemplateForm({
       quantity: draft.quantity.trim(),
       emiAmount: draft.emiAmount,
       deductionDayOfMonth: draft.deductionDayOfMonth,
+      emiEndMonth: draft.emiEndMonth || undefined,
     }
 
     const hasInvalidEmiAmount =
@@ -250,6 +252,23 @@ export function SpendTemplateForm({
           setDraft((currentDraft) => ({
             ...currentDraft,
             deductionDayOfMonth: value === '' ? undefined : Number(value),
+          }))
+        }}
+        disabled={disabled || isSubmitting}
+      />
+
+      <label htmlFor={`${title}-emi-end-month`}>Last EMI Month (Optional)</label>
+      <input
+        id={`${title}-emi-end-month`}
+        className="families-input"
+        type="month"
+        value={draft.emiEndMonth ?? ''}
+        onChange={(event) => {
+          const value = event.currentTarget.value
+
+          setDraft((currentDraft) => ({
+            ...currentDraft,
+            emiEndMonth: value || undefined,
           }))
         }}
         disabled={disabled || isSubmitting}

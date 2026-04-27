@@ -112,6 +112,36 @@ async function upsertSubCollection<T extends { id?: number }>(
   return writeTargets.length
 }
 
+export async function deleteSubCollectionOrphans(
+  cloudFamilyId: string,
+  collectionName: 'persons' | 'spendTemplates' | 'monthlySpendEntries',
+  keepIds: Set<string>,
+): Promise<number> {
+  const snapshot = await getDocs(getFamilySubCollection(cloudFamilyId, collectionName))
+  const toDelete = snapshot.docs.filter((d) => !keepIds.has(d.id))
+
+  if (toDelete.length === 0) {
+    return 0
+  }
+
+  const db = getDb()
+  for (let i = 0; i < toDelete.length; i += WRITE_BATCH_LIMIT) {
+    const batch = writeBatch(db)
+    const chunk = toDelete.slice(i, i + WRITE_BATCH_LIMIT)
+    for (const d of chunk) {
+      batch.delete(d.ref)
+    }
+    await batch.commit()
+  }
+
+  return toDelete.length
+}
+
+export async function deleteCloudFamilyDoc(cloudFamilyId: string): Promise<void> {
+  const db = getDb()
+  await writeBatch(db).delete(getFamilyRef(cloudFamilyId)).commit()
+}
+
 export async function loadSharedFamilyData(
   email: string,
 ): Promise<SharedFamilyBundle[]> {
