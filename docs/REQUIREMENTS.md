@@ -33,13 +33,14 @@ Primary goals:
 ## 3. Scope
 ### 3.1 In Scope (MVP)
 - Family and person management.
+- Category management (add/rename/delete) in Settings, referenced by spend plans via `categoryId`.
 - Spend plan creation and edit, including step-up/step-down amount history.
 - Monthly spend view computed live from plans — no per-month persistence.
 - Budget stat card and bar chart for the selected month's total resolved budget.
 - Budget projection graph across past/future months.
 - Spend card budget impact score (1–10 relative to filtered entries) with color indicator.
 - Spend card sort controls (Cost ↓, Cost ↑, Category).
-- Pie chart by spend category/type.
+- Pie chart by spend category.
 - Theming: `Light`, `Dark`, and `Device` preference mode.
 - Responsive layouts for phone and desktop browser.
 - Manual backup/restore (JSON/CSV acceptable for MVP).
@@ -60,7 +61,7 @@ Primary goals:
 
 ### 4.2 Spend Plan (formerly "Template")
 Each spend plan supports:
-- `type` (Insurance, Transport, Utility, etc.)
+- `categoryId` — a reference to a user-managed `Category` (4.2.1), not a free-text string. Renaming a category is instant everywhere a plan referencing it is displayed, since the plan stores only the reference.
 - `name`
 - `frequency` (`Monthly`, `Quarterly`, `Annually`, `AdHoc`)
 - `baseBudget` — the plan's starting amount.
@@ -71,6 +72,14 @@ Each spend plan supports:
 - `steps` — an array of step-up/step-down changes (see 4.3). This replaces per-month cost editing as the single mechanism for any amount change, permanent or one-off.
 
 A spend plan does **not** store a per-month cost. Every month's amount is calculated from `baseBudget` plus `steps` (4.3).
+
+#### 4.2.1 Category Management
+Categories are managed in Settings, per family:
+- `name` (required, unique within the family)
+- `color` — assigned automatically from a fixed palette when the category is created; not user-editable, and stays fixed regardless of what other categories are added, renamed, or deleted afterward. This replaces the previous behavior of deriving a spend's color from its type string's alphabetical position among all currently-in-use types, which caused colors to reshuffle whenever the set of distinct types changed.
+- User can **add** a new category, **rename** an existing one, and **delete** one.
+- A category **cannot be deleted while any spend plan references it** — Settings shows how many plans use it and blocks deletion until they're reassigned to a different category or removed.
+- Renaming a category is reflected immediately everywhere spend plans referencing it are shown (dashboard, spends list, pie chart, sort) — there is nothing to "propagate," since plans store a `categoryId` reference, not a copy of the name.
 
 ### 4.3 Step-Up / Step-Down Changes
 Each plan carries a `steps` array capturing every amount change over its lifetime:
@@ -110,7 +119,7 @@ flowchart TD
 
 ### 4.5 Dashboard and Reporting
 - Budget panel shows the total resolved budget for the selected month as a stat card — sum of `resolveBudgetForMonth` across all eligible plans (this naturally includes Quarterly/Annually plans only in their billing month). There is no Spent/Pending breakdown, since actual-vs-planned is no longer tracked.
-- Category pie chart shows resolved-budget distribution by `type` for the selected month.
+- Category pie chart shows resolved-budget distribution by category for the selected month, using each category's own fixed `color` (4.2.1) rather than a derived/positional palette.
 - Each spend card displays a budget impact score from 1–10, derived by min-max normalising resolved amounts within the current filter (family or person). Score 10 = highest cost; score 1 = lowest. Color gradient: yellow (low) → dark red (high).
 - Spend cards can be sorted by: Cost ↓, Cost ↑, Category. (`Pending First` is removed — no status to sort by.)
 - All dashboard views respect the active person filter (Entire Family or per-person).
@@ -199,6 +208,7 @@ Normalized, three-table schema — chosen over collapsing everything into a sing
 
 - `families`
 - `persons`
+- `categories` — user-managed, per family; referenced by `spend_plans.categoryId` (4.2.1).
 - `spend_plans` (formerly `spend_templates`) — includes embedded `steps` array (4.3) as a plain JSON field on the row, not a separate table; no standalone `emi_rules` table, as `dayOfDeduction`/`endDate` are now generic plan fields.
 - `app_settings`
 
@@ -209,8 +219,14 @@ Each table converts cleanly to/from plain JSON for backup export/import and Fire
 ```mermaid
 erDiagram
     FAMILY ||--o{ PERSON : has
+    FAMILY ||--o{ CATEGORY : owns
     FAMILY ||--o{ SPEND_PLAN : owns
     PERSON |o--o{ SPEND_PLAN : "optionally tagged to"
+    CATEGORY ||--o{ SPEND_PLAN : "referenced by"
+    CATEGORY {
+        string name
+        string color
+    }
     SPEND_PLAN {
         string frequency
         number baseBudget
@@ -272,46 +288,59 @@ Implementation checklist for the step-based `spendPlans` redesign (schema, resol
 ### Phase A: Schema migration (blocks everything else)
 | Task | Status |
 | --- | --- |
-| Add `SpendPlan` type + `StepChange` type to `src/shared/domain/types.ts` (4.2–4.3) | - [ ] |
-| Add `spendPlans` Dexie table (version bump to `3`), drop `spendTemplates`/`monthlySpendEntries` from schema (`docs/DB_SCHEMA.md` §2.3) | - [ ] |
-| Write one-time Dexie `upgrade()` migration: `spendTemplates` + `monthlySpendEntries` history → `spendPlans` + `steps[]` (`docs/DB_SCHEMA.md` §5) | - [ ] |
-| Add `lastModifiedAt` field to `families` table (Dexie + Firestore mirror) (4.7.1) | - [ ] |
+| Add `SpendPlan` type + `StepChange` type to `src/shared/domain/types.ts` (4.2–4.3) | - [x] |
+| Add `spendPlans` Dexie table (version bump to `3`), drop `spendTemplates`/`monthlySpendEntries` from schema (`docs/DB_SCHEMA.md` §2.3) | - [x] |
+| Write one-time Dexie `upgrade()` migration: `spendTemplates` + `monthlySpendEntries` history → `spendPlans` + `steps[]` (`docs/DB_SCHEMA.md` §5) | - [x] |
+| Add `lastModifiedAt` field to `families` table (Dexie + Firestore mirror) (4.7.1) | - [x] |
 
 ### Phase B: Resolution logic
 | Task | Status |
 | --- | --- |
-| Implement `resolveBudgetForMonth(plan, monthKey)` — baseline + permanent step + one-off override resolution (4.3) | - [ ] |
-| Update frequency eligibility rules for generic `endDate` (replaces `emiEndMonth`) (4.4) | - [ ] |
-| Remove `monthly-entry.generator.ts` cost carry-forward logic — no longer applicable, nothing materialized per month | - [ ] |
-| Remove status workflow (`Spent`/`Not Yet`/`Skip`), `manuallyUpdatedStatus`, deduction-day auto-toggle, and EMI-only fields (`emiAmount`) | - [ ] |
+| Implement `resolveBudgetForMonth(plan, monthKey)` — baseline + permanent step + one-off override resolution (4.3) | - [x] |
+| Update frequency eligibility rules for generic `endDate` (replaces `emiEndMonth`) (4.4) | - [x] |
+| Remove `monthly-entry.generator.ts` cost carry-forward logic — no longer applicable, nothing materialized per month | - [x] |
+| Remove status workflow (`Spent`/`Not Yet`/`Skip`), `manuallyUpdatedStatus`, deduction-day auto-toggle, and EMI-only fields (`emiAmount`) | - [x] |
 
 ### Phase C: Plan editing UI
 | Task | Status |
 | --- | --- |
-| Rework spend template CRUD form into `SpendPlan` form (`baseBudget`, `startMonth`, `endDate`, `dayOfDeduction`) | - [ ] |
-| Step-up/step-down editing UI on a plan, including one-off toggle (4.3) | - [ ] |
-| Update spend-to-person tagging and cascade-delete logic for `spendPlans` (family/person delete paths) | - [ ] |
+| Rework spend template CRUD form into `SpendPlan` form (`baseBudget`, `startMonth`, `endDate`, `dayOfDeduction`) | - [x] |
+| Step-up/step-down editing UI on a plan, including one-off toggle (4.3) | - [x] |
+| Update spend-to-person tagging and cascade-delete logic for `spendPlans` (family/person delete paths) | - [x] |
 
 ### Phase D: Dashboard rework
 | Task | Status |
 | --- | --- |
-| Replace Budget/Spent/Pending breakdown with single resolved-budget total for selected month (4.5) | - [ ] |
-| Update category pie chart to use resolved amounts instead of `Spent`-status entries (4.5) | - [ ] |
-| Update budget impact score + sort controls (`Cost ↓`, `Cost ↑`, `Category`) for resolved amounts; remove `Pending First` (4.5) | - [ ] |
-| Build budget projection graph across past/future months (4.5) — resolve default month range (open decision, §9) | - [ ] |
-| Update person/family filter to operate on `spendPlans` instead of `monthlySpendEntries` | - [ ] |
+| Replace Budget/Spent/Pending breakdown with single resolved-budget total for selected month (4.5) | - [x] |
+| Update category pie chart to use resolved amounts instead of `Spent`-status entries (4.5) | - [x] |
+| Update budget impact score + sort controls (`Cost ↓`, `Cost ↑`, `Category`) for resolved amounts; remove `Pending First` (4.5) | - [x] |
+| Build budget projection graph across past/future months (4.5) — resolve default month range (open decision, §9) | - [x] |
+| Update person/family filter to operate on `spendPlans` instead of `monthlySpendEntries` | - [x] |
 
 ### Phase E: Backup/restore + sync
 | Task | Status |
 | --- | --- |
-| Update `backup.schema.ts`/`backup.service.ts` for `families`/`persons`/`spendPlans` shape, bump `backupVersion` to `2` (`docs/DB_SCHEMA.md` §6) | - [ ] |
-| Handle old (`backupVersion: 1`) backup files: reject or route through Phase A migration transform (4.6) | - [ ] |
-| Launch-time sync token check + auto-pull-if-no-local-changes (4.7.1) | - [ ] |
-| Sync banner with Discard-and-pull / Override-cloud actions (4.7.2) | - [ ] |
-| Update Firestore sync payload shape (`persons`/`spendPlans` sub-collections replace `persons`/`spendTemplates`/`monthlySpendEntries`) | - [ ] |
+| Update `backup.schema.ts`/`backup.service.ts` for `families`/`persons`/`spendPlans` shape, bump `backupVersion` to `2` (`docs/DB_SCHEMA.md` §6) | - [x] |
+| Handle old (`backupVersion: 1`) backup files: reject or route through Phase A migration transform (4.6) | - [x] |
+| Launch-time sync token check + auto-pull-if-no-local-changes (4.7.1) | - [x] |
+| Sync banner with Discard-and-pull / Override-cloud actions (4.7.2) | - [x] |
+| Update Firestore sync payload shape (`persons`/`spendPlans` sub-collections replace `persons`/`spendTemplates`/`monthlySpendEntries`) | - [x] |
 
 ### Phase F: Validation
 | Task | Status |
 | --- | --- |
 | Cross-device sync validation with the new launch-time banner (20-30 internal users target) | - [ ] |
 | End-to-end check: migrate a real existing dataset (old schema) and verify resolved amounts match prior per-month costs | - [ ] |
+
+### Phase G: Category management (4.2.1)
+| Task | Status |
+| --- | --- |
+| Add `Category` type to `src/shared/domain/types.ts`; add `categories` Dexie table (version bump to `4`) | - [ ] |
+| Write one-time Dexie `upgrade()` migration: distinct `spendPlans.type` strings per family → `categories` rows with auto-assigned fixed color; rewrite `spendPlans.type` → `categoryId` (`docs/DB_SCHEMA.md` §5) | - [ ] |
+| Category repository: create/rename/delete, with delete blocked while any `spendPlans` row references the category | - [ ] |
+| Settings UI: category list with add/rename/delete, in-use plan count shown per category | - [ ] |
+| Update `SpendPlanForm`/`SpendPlanIdentityFields` to select `categoryId` from the managed list instead of free-text `type` input | - [ ] |
+| Update dashboard (pie chart, sort, budget score, plan list ribbons) and spends list to resolve category name/color via `categoryId` lookup instead of `type` string | - [ ] |
+| Replace positional `buildCategoryColorMap` with each category's stored fixed `color` | - [ ] |
+| Update `backup.schema.ts`/`backup.service.ts` for `categories` table, bump `backupVersion` to `3`; route older backups through the migration transform | - [ ] |
+| Update Firestore sync payload shape to include a `categories` sub-collection | - [ ] |
