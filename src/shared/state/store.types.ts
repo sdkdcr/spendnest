@@ -14,6 +14,7 @@ export interface AppState {
   syncStatus: SyncStatus
   syncMessage: string | null
   autoSyncEnabled: boolean
+  isSyncBannerVisible: boolean
   setSelectedFamilyId: (familyId: number | null) => void
   setSelectedMonthKey: (monthKey: string) => void
   setThemeMode: (mode: ThemeMode) => void
@@ -22,10 +23,14 @@ export interface AppState {
   setAuthError: (errorMessage: string | null) => void
   setSyncState: (status: SyncStatus, message: string | null) => void
   setAutoSyncEnabled: (enabled: boolean) => void
+  setSyncBannerVisible: (visible: boolean) => void
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
   syncNow: () => Promise<void>
   repairCloud: () => Promise<void>
   clearSpends: () => Promise<void>
   deregister: () => Promise<void>
+  runLaunchSyncCheck: () => Promise<void>
+  discardLocalAndPullFromCloud: () => Promise<void>
+  overrideCloudWithLocal: () => Promise<void>
 }

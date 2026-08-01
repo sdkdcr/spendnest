@@ -1,6 +1,6 @@
 import { appDb } from '../db/appDb'
 import type { Family } from '../domain/types'
-import { pushSharedFamilyData, type SharedFamilyBundle } from '../firebase/firestore'
+import { pushSharedFamilyData, type SharedFamilyBundle } from '../firebase/firestore.family-sync'
 import { buildCloudFamilyId, normalizeEmail, type PushSummary } from './sync.helpers'
 
 export async function ensureFamiliesHaveCloudIds(
@@ -47,11 +47,10 @@ export async function pushLocalDataToCloud(
     throw new Error('Signed-in user email is required for shared family sync.')
   }
 
-  const [rawFamilies, persons, spendTemplates, monthlySpendEntries] = await Promise.all([
+  const [rawFamilies, persons, spendPlans] = await Promise.all([
     appDb.families.toArray(),
     appDb.persons.toArray(),
-    appDb.spendTemplates.toArray(),
-    appDb.monthlySpendEntries.toArray(),
+    appDb.spendPlans.toArray(),
   ])
 
   const families = await ensureFamiliesHaveCloudIds(uid, rawFamilies)
@@ -63,8 +62,7 @@ export async function pushLocalDataToCloud(
   const bundles: SharedFamilyBundle[] = cloudReadyFamilies.map((family) => ({
     family,
     persons: persons.filter((person) => person.familyId === family.id),
-    spendTemplates: spendTemplates.filter((template) => template.familyId === family.id),
-    monthlySpendEntries: monthlySpendEntries.filter((entry) => entry.familyId === family.id),
+    spendPlans: spendPlans.filter((plan) => plan.familyId === family.id),
   }))
 
   const pushed = await pushSharedFamilyData(uid, normalizedEmail, bundles)

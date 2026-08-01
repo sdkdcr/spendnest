@@ -1,4 +1,4 @@
-import type { SpendTemplate } from '../../shared/domain/types'
+import type { SpendPlan } from '../../shared/domain/types'
 
 interface YearMonth {
   year: number
@@ -26,40 +26,33 @@ function monthDiff(from: YearMonth, to: YearMonth): number {
   return (to.year - from.year) * 12 + (to.month - from.month)
 }
 
-export function isTemplateEligibleForMonth(
-  template: SpendTemplate,
+export function isPlanEligibleForMonth(
+  plan: SpendPlan,
   monthKey: string,
 ): boolean {
   const targetMonth = parseYearMonth(monthKey)
-  const createdAtMonth = parseYearMonth(template.createdAt.slice(0, 7))
+  const anchorMonth = parseYearMonth(plan.startMonth)
 
-  if (!targetMonth || !createdAtMonth) {
+  if (!targetMonth || !anchorMonth) {
     return false
   }
 
-  // Never generate entries before the template was created
-  if (monthDiff(createdAtMonth, targetMonth) < 0) {
+  if (monthDiff(anchorMonth, targetMonth) < 0) {
     return false
   }
 
-  if (template.emiEndMonth !== undefined && monthKey > template.emiEndMonth) {
+  if (plan.endDate !== undefined && monthKey > plan.endDate) {
     return false
   }
 
-  switch (template.frequency) {
+  switch (plan.frequency) {
     case 'Monthly':
     case 'AdHoc':
       return true
     case 'Quarterly':
     case 'Annually': {
-      // Use startMonth as cycle anchor if set, otherwise fall back to createdAt
-      const anchorRaw = template.startMonth ?? template.createdAt.slice(0, 7)
-      const anchorMonth = parseYearMonth(anchorRaw)
-      if (!anchorMonth) {
-        return false
-      }
       const elapsed = monthDiff(anchorMonth, targetMonth)
-      return template.frequency === 'Quarterly' ? elapsed % 3 === 0 : elapsed % 12 === 0
+      return plan.frequency === 'Quarterly' ? elapsed % 3 === 0 : elapsed % 12 === 0
     }
     default:
       return false

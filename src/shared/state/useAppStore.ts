@@ -12,6 +12,11 @@ import {
   handleRepairCloud,
   handleSyncNow,
 } from './syncActions'
+import {
+  handleDiscardLocalAndPullFromCloud,
+  handleOverrideCloudWithLocal,
+  handleRunLaunchSyncCheck,
+} from './syncBannerActions'
 import type { AppState } from './store.types'
 
 export type { AppState, SyncStatus } from './store.types'
@@ -46,6 +51,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   syncStatus: 'idle',
   syncMessage: null,
   autoSyncEnabled: getInitialAutoSyncEnabled(),
+  isSyncBannerVisible: false,
   setSelectedFamilyId: (familyId) => set({ selectedFamilyId: familyId }),
   setSelectedMonthKey: (monthKey) => set({ selectedMonthKey: monthKey }),
   setThemeMode: (mode) => {
@@ -61,10 +67,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     persistAutoSyncEnabled(enabled)
     set({ autoSyncEnabled: enabled })
   },
+  setSyncBannerVisible: (visible) => set({ isSyncBannerVisible: visible }),
   signInWithGoogle: () => handleSignInWithGoogle(set),
   signOut: () => handleSignOut(set),
   syncNow: () => handleSyncNow(set, get),
   repairCloud: () => handleRepairCloud(set, get),
   clearSpends: () => handleClearSpends(set, get),
   deregister: () => handleDeregister(set, get),
+  runLaunchSyncCheck: () => handleRunLaunchSyncCheck(set, get),
+  discardLocalAndPullFromCloud: () => handleDiscardLocalAndPullFromCloud(set, get),
+  overrideCloudWithLocal: () => handleOverrideCloudWithLocal(set, get),
 }))

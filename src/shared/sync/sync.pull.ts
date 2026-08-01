@@ -1,8 +1,8 @@
 import type { Table } from 'dexie'
 import { appDb } from '../db/appDb'
 import { generateClientId } from '../domain/id'
-import type { Family, MonthlySpendEntry, Person, SpendTemplate } from '../domain/types'
-import { loadSharedFamilyData } from '../firebase/firestore'
+import type { Family, Person, SpendPlan } from '../domain/types'
+import { loadSharedFamilyData } from '../firebase/firestore.family-sync'
 import {
   normalizeEmail,
   parseTimestamp,
@@ -56,6 +56,7 @@ async function resolveLocalFamily(family: Family): Promise<Family> {
       name: family.name,
       cloudFamilyId: family.cloudFamilyId,
       memberEmails: family.memberEmails,
+      lastModifiedAt: family.lastModifiedAt,
       createdAt: family.createdAt,
       updatedAt: family.updatedAt,
     }
@@ -72,6 +73,7 @@ async function resolveLocalFamily(family: Family): Promise<Family> {
       name: family.name,
       memberEmails: family.memberEmails,
       cloudFamilyId: family.cloudFamilyId,
+      lastModifiedAt: family.lastModifiedAt,
       createdAt: family.createdAt,
       updatedAt: family.updatedAt,
     }
@@ -95,8 +97,7 @@ export async function pullCloudDataToLocal(email: string): Promise<PullSummary> 
     'rw',
     appDb.families,
     appDb.persons,
-    appDb.spendTemplates,
-    appDb.monthlySpendEntries,
+    appDb.spendPlans,
     async () => {
       for (const bundle of familyBundles) {
         const localFamily = await resolveLocalFamily(bundle.family)
@@ -110,24 +111,13 @@ export async function pullCloudDataToLocal(email: string): Promise<PullSummary> 
           ...person,
           familyId: localFamilyId,
         }))
-        const localizedTemplates = bundle.spendTemplates.map((template) => ({
-          ...template,
-          familyId: localFamilyId,
-        }))
-        const localizedEntries = bundle.monthlySpendEntries.map((entry) => ({
-          ...entry,
+        const localizedPlans = bundle.spendPlans.map((plan) => ({
+          ...plan,
           familyId: localFamilyId,
         }))
 
         mergedCount += await mergeRemoteTable<Person>(appDb.persons, localizedPersons)
-        mergedCount += await mergeRemoteTable<SpendTemplate>(
-          appDb.spendTemplates,
-          localizedTemplates,
-        )
-        mergedCount += await mergeRemoteTable<MonthlySpendEntry>(
-          appDb.monthlySpendEntries,
-          localizedEntries,
-        )
+        mergedCount += await mergeRemoteTable<SpendPlan>(appDb.spendPlans, localizedPlans)
       }
     },
   )

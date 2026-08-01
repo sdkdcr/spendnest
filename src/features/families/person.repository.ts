@@ -1,4 +1,5 @@
 import { appDb } from '../../shared/db/appDb'
+import { touchFamilyLastModified } from '../../shared/db/touchFamily'
 import { generateClientId } from '../../shared/domain/id'
 import type { Person } from '../../shared/domain/types'
 import { requestAutoSync } from '../../shared/sync/auto-sync'
@@ -29,38 +30,46 @@ export async function createPerson(
     updatedAt: timestamp,
   }
 
-  await appDb.persons.put(nextPerson)
+  await appDb.transaction('rw', appDb.persons, appDb.families, async () => {
+    await appDb.persons.put(nextPerson)
+    await touchFamilyLastModified(familyId, timestamp)
+  })
   requestAutoSync()
 
   return nextPerson
 }
 
-export async function renamePerson(personId: number, name: string): Promise<void> {
-  await appDb.persons.update(personId, {
-    name,
-    updatedAt: nowIso(),
+export async function renamePerson(
+  personId: number,
+  familyId: number,
+  name: string,
+): Promise<void> {
+  const timestamp = nowIso()
+  await appDb.transaction('rw', appDb.persons, appDb.families, async () => {
+    await appDb.persons.update(personId, { name, updatedAt: timestamp })
+    await touchFamilyLastModified(familyId, timestamp)
   })
   requestAutoSync()
 }
 
-export async function deletePerson(personId: number): Promise<void> {
+export async function deletePerson(
+  personId: number,
+  familyId: number,
+): Promise<void> {
+  const timestamp = nowIso()
   await appDb.transaction(
     'rw',
     appDb.persons,
-    appDb.spendTemplates,
-    appDb.monthlySpendEntries,
+    appDb.spendPlans,
+    appDb.families,
     async () => {
-      await appDb.spendTemplates.where('personId').equals(personId).modify({
+      await appDb.spendPlans.where('personId').equals(personId).modify({
         personId: undefined,
-        updatedAt: nowIso(),
-      })
-
-      await appDb.monthlySpendEntries.where('personId').equals(personId).modify({
-        personId: undefined,
-        updatedAt: nowIso(),
+        updatedAt: timestamp,
       })
 
       await appDb.persons.delete(personId)
+      await touchFamilyLastModified(familyId, timestamp)
     },
   )
   requestAutoSync()
