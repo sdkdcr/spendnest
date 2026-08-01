@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { applyTheme, watchDeviceTheme } from '../features/theme/theme.runtime'
 import { appDb } from '../shared/db/appDb'
+import { formatMonthKeyShort, getCurrentMonthKey } from '../shared/domain/month-key'
 import { useAppStore } from '../shared/state/useAppStore'
 import { SyncBanner } from '../shared/ui/SyncBanner'
 import { useAppUpdate } from './useAppUpdate'
@@ -13,22 +14,6 @@ const navItems = [
   { to: '/families', label: 'Families' },
   { to: '/settings', label: 'Settings' },
 ]
-
-function formatMonthLabel(monthKey: string): string {
-  const [yearToken, monthToken] = monthKey.split('-')
-  const year = Number(yearToken)
-  const month = Number(monthToken)
-
-  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
-    return monthKey
-  }
-
-  const monthDate = new Date(year, month - 1, 1)
-  const monthLabel = monthDate.toLocaleString('en-US', { month: 'short' })
-  const shortYear = String(year).slice(-2)
-
-  return `${monthLabel}'${shortYear}`
-}
 
 export function AppShell() {
   const selectedFamilyId = useAppStore((state) => state.selectedFamilyId)
@@ -80,7 +65,7 @@ export function AppShell() {
     }
   }, [selectedFamilyId])
 
-  const currentMonthKey = new Date().toISOString().slice(0, 7)
+  const currentMonthKey = getCurrentMonthKey()
   const isCurrentMonthSelected = selectedMonthKey === currentMonthKey
   const authSummary = !firebaseEnabled
     ? 'Local mode'
@@ -121,7 +106,7 @@ export function AppShell() {
         <div className="app-header-meta">
           <div className="app-month-toolbar">
             <span className="app-month-pill">
-              Selected: {formatMonthLabel(selectedMonthKey)}
+              Selected: {formatMonthKeyShort(selectedMonthKey)}
             </span>
             <button
               className="app-month-btn"

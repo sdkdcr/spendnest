@@ -1,12 +1,15 @@
 import {
+  Bar,
   CartesianGrid,
+  Cell,
+  ComposedChart,
   Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
+import { formatMonthKeyShort, getCurrentMonthKey } from '../../shared/domain/month-key'
 
 export interface ProjectionPoint {
   monthKey: string
@@ -19,6 +22,8 @@ interface BudgetProjectionChartProps {
 }
 
 const PROJECTION_LINE_COLOR = '#4E79A7'
+const PROJECTION_BAR_COLOR = '#A7C6E8'
+const CURRENT_MONTH_BAR_COLOR = '#4E79A7'
 
 function formatAxisTick(value: number): string {
   if (value >= 1000) return `${(value / 1000).toFixed(1)}K`
@@ -30,13 +35,16 @@ export function BudgetProjectionChart({ data, selectedMonthKey }: BudgetProjecti
     return <p className="families-help">No budget data for chart visualization.</p>
   }
 
+  const currentMonthKey = getCurrentMonthKey()
+
   return (
     <ResponsiveContainer width="100%" height={240}>
-      <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+      <ComposedChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-        <XAxis dataKey="monthKey" />
+        <XAxis dataKey="monthKey" tickFormatter={formatMonthKeyShort} />
         <YAxis tickFormatter={formatAxisTick} width={52} />
         <Tooltip
+          labelFormatter={(label) => formatMonthKeyShort(String(label))}
           formatter={(value) => Number(value ?? 0).toFixed(2)}
           contentStyle={{
             borderRadius: '8px',
@@ -44,6 +52,14 @@ export function BudgetProjectionChart({ data, selectedMonthKey }: BudgetProjecti
             background: 'var(--surface)',
           }}
         />
+        <Bar dataKey="total" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+          {data.map((point) => (
+            <Cell
+              key={point.monthKey}
+              fill={point.monthKey === currentMonthKey ? CURRENT_MONTH_BAR_COLOR : PROJECTION_BAR_COLOR}
+            />
+          ))}
+        </Bar>
         <Line
           type="monotone"
           dataKey="total"
@@ -51,6 +67,7 @@ export function BudgetProjectionChart({ data, selectedMonthKey }: BudgetProjecti
           strokeWidth={2}
           dot={(dotProps: { cx?: number; cy?: number; payload?: ProjectionPoint }) => {
             const isSelected = dotProps.payload?.monthKey === selectedMonthKey
+            const isCurrent = dotProps.payload?.monthKey === currentMonthKey
             return (
               <circle
                 key={dotProps.payload?.monthKey}
@@ -58,13 +75,13 @@ export function BudgetProjectionChart({ data, selectedMonthKey }: BudgetProjecti
                 cy={dotProps.cy}
                 r={isSelected ? 5 : 3}
                 fill={PROJECTION_LINE_COLOR}
-                stroke="var(--surface)"
-                strokeWidth={isSelected ? 2 : 1}
+                stroke={isCurrent ? 'var(--accent)' : 'var(--surface)'}
+                strokeWidth={isSelected || isCurrent ? 2 : 1}
               />
             )
           }}
         />
-      </LineChart>
+      </ComposedChart>
     </ResponsiveContainer>
   )
 }

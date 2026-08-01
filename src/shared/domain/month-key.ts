@@ -17,3 +17,23 @@ export function buildMonthRange(centerMonthKey: string, before: number, after: n
   }
   return range
 }
+
+export function getCurrentMonthKey(): string {
+  return new Date().toISOString().slice(0, 7)
+}
+
+export function formatMonthKeyShort(monthKey: string): string {
+  const [yearToken, monthToken] = monthKey.split('-')
+  const year = Number(yearToken)
+  const month = Number(monthToken)
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+    return monthKey
+  }
+
+  const monthDate = new Date(year, month - 1, 1)
+  const monthLabel = monthDate.toLocaleString('en-US', { month: 'short' })
+  const shortYear = String(year).slice(-2)
+
+  return `${monthLabel}'${shortYear}`
+}
