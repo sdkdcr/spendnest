@@ -47,9 +47,10 @@ export async function pushLocalDataToCloud(
     throw new Error('Signed-in user email is required for shared family sync.')
   }
 
-  const [rawFamilies, persons, spendPlans] = await Promise.all([
+  const [rawFamilies, persons, categories, spendPlans] = await Promise.all([
     appDb.families.toArray(),
     appDb.persons.toArray(),
+    appDb.categories.toArray(),
     appDb.spendPlans.toArray(),
   ])
 
@@ -62,6 +63,7 @@ export async function pushLocalDataToCloud(
   const bundles: SharedFamilyBundle[] = cloudReadyFamilies.map((family) => ({
     family,
     persons: persons.filter((person) => person.familyId === family.id),
+    categories: categories.filter((category) => category.familyId === family.id),
     spendPlans: spendPlans.filter((plan) => plan.familyId === family.id),
   }))
 

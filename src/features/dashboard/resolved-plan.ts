@@ -4,7 +4,7 @@ import { resolveBudgetForMonth } from '../spends/budget-resolution'
 export interface ResolvedPlan {
   planId: number
   personId?: number
-  type: string
+  categoryId: number
   name: string
   quantity: string
   dayOfDeduction?: number
@@ -27,7 +27,7 @@ export function resolvePlansForMonth(plans: SpendPlan[], monthKey: string): Reso
     resolved.push({
       planId: plan.id,
       personId: plan.personId,
-      type: plan.type,
+      categoryId: plan.categoryId,
       name: plan.name,
       quantity: plan.quantity,
       dayOfDeduction: plan.dayOfDeduction,

@@ -1,10 +1,10 @@
-import { getCategoryColor } from '../dashboard/category-colors'
-import type { SpendPlan } from '../../shared/domain/types'
+import type { Category, SpendPlan } from '../../shared/domain/types'
+import { FALLBACK_CATEGORY_COLOR } from '../../shared/domain/category-palette'
 
 interface SpendPlanListProps {
   spendPlans: SpendPlan[]
   personNamesById: Record<number, string>
-  categoryColorByType: Record<string, string>
+  categoriesById: Record<number, Category>
   onEdit: (plan: SpendPlan) => void
   onDelete: (planId: number) => void
 }
@@ -20,7 +20,7 @@ function formatCurrency(amount: number): string {
 export function SpendPlanList({
   spendPlans,
   personNamesById,
-  categoryColorByType,
+  categoriesById,
   onEdit,
   onDelete,
 }: SpendPlanListProps) {
@@ -37,6 +37,10 @@ export function SpendPlanList({
             ? personNamesById[plan.personId] ?? 'Unknown person'
             : 'Unassigned'
 
+        const category = categoriesById[plan.categoryId]
+        const categoryName = category?.name ?? 'Unknown category'
+        const categoryColor = category?.color ?? FALLBACK_CATEGORY_COLOR
+
         const hasSchedule = plan.dayOfDeduction !== undefined || plan.endDate !== undefined
         const scheduleLabel = hasSchedule
           ? [
@@ -51,9 +55,9 @@ export function SpendPlanList({
           <li className="spend-template-item" key={planId}>
             <span
               className="spend-ribbon-category"
-              style={{ backgroundColor: getCategoryColor(plan.type, categoryColorByType), color: '#fff' }}
+              style={{ backgroundColor: categoryColor, color: '#fff' }}
             >
-              {plan.type || '—'}
+              {categoryName}
             </span>
             <span className="spend-ribbon-frequency">{plan.frequency}</span>
 

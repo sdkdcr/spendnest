@@ -1,4 +1,4 @@
-import type { Person } from '../../shared/domain/types'
+import type { Category, Person } from '../../shared/domain/types'
 import type { SpendPlanDraft } from './spend-plan.repository'
 
 interface SpendPlanIdentityFieldsProps {
@@ -6,7 +6,7 @@ interface SpendPlanIdentityFieldsProps {
   draft: SpendPlanDraft
   onChange: (patch: Partial<SpendPlanDraft>) => void
   persons: Person[]
-  knownTypes: string[]
+  categories: Category[]
   disabled: boolean
 }
 
@@ -15,7 +15,7 @@ export function SpendPlanIdentityFields({
   draft,
   onChange,
   persons,
-  knownTypes,
+  categories,
   disabled,
 }: SpendPlanIdentityFieldsProps) {
   return (
@@ -43,23 +43,29 @@ export function SpendPlanIdentityFields({
         })}
       </select>
 
-      <label htmlFor={`${idPrefix}-type`}>Category</label>
-      <input
-        id={`${idPrefix}-type`}
+      <label htmlFor={`${idPrefix}-category`}>Category</label>
+      <select
+        id={`${idPrefix}-category`}
         className="families-input"
-        list={`${idPrefix}-type-list`}
-        value={draft.type}
+        value={draft.categoryId || ''}
         onChange={(event) => {
-          onChange({ type: event.currentTarget.value })
+          const value = event.currentTarget.value
+          onChange({ categoryId: value ? Number(value) : 0 })
         }}
-        placeholder="e.g. Utilities"
         disabled={disabled}
-      />
-      <datalist id={`${idPrefix}-type-list`}>
-        {knownTypes.map((category) => (
-          <option key={category} value={category} />
-        ))}
-      </datalist>
+      >
+        <option value="">Select a category</option>
+        {categories.map((category) => {
+          if (category.id === undefined) {
+            return null
+          }
+          return (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          )
+        })}
+      </select>
 
       <label htmlFor={`${idPrefix}-name`}>Name</label>
       <input

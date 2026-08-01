@@ -1,17 +1,17 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
-import { getCategoryColor } from './category-colors'
 
 export interface CategoryTotal {
-  type: string
+  categoryId: number
+  categoryName: string
+  color: string
   amount: number
 }
 
 interface CategoryPieChartProps {
   data: CategoryTotal[]
-  colorByType: Record<string, string>
 }
 
-export function CategoryPieChart({ data, colorByType }: CategoryPieChartProps) {
+export function CategoryPieChart({ data }: CategoryPieChartProps) {
   if (data.length === 0) {
     return <p className="families-help">No budget data for chart visualization.</p>
   }
@@ -23,17 +23,14 @@ export function CategoryPieChart({ data, colorByType }: CategoryPieChartProps) {
           <Pie
             data={data}
             dataKey="amount"
-            nameKey="type"
+            nameKey="categoryName"
             cx="50%"
             cy="50%"
             outerRadius={85}
             label
           >
             {data.map((entry) => (
-              <Cell
-                key={`${entry.type}-${entry.amount}`}
-                fill={getCategoryColor(entry.type, colorByType)}
-              />
+              <Cell key={entry.categoryId} fill={entry.color} />
             ))}
           </Pie>
           <Tooltip
@@ -49,13 +46,13 @@ export function CategoryPieChart({ data, colorByType }: CategoryPieChartProps) {
 
       <ul className="dashboard-chart-legend">
         {data.map((entry) => (
-          <li className="dashboard-chart-legend-item" key={entry.type}>
+          <li className="dashboard-chart-legend-item" key={entry.categoryId}>
             <span
               className="dashboard-chart-dot"
-              style={{ backgroundColor: getCategoryColor(entry.type, colorByType) }}
+              style={{ backgroundColor: entry.color }}
               aria-hidden="true"
             />
-            <span>{entry.type}</span>
+            <span>{entry.categoryName}</span>
             <span>{entry.amount.toFixed(2)}</span>
           </li>
         ))}

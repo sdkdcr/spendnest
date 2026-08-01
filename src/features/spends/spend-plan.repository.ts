@@ -10,7 +10,7 @@ function nowIso(): string {
 
 export interface SpendPlanDraft {
   personId?: number
-  type: string
+  categoryId: number
   name: string
   frequency: SpendFrequency
   baseBudget: number
@@ -41,7 +41,7 @@ export async function createSpendPlan(
     id,
     familyId,
     personId: draft.personId,
-    type: draft.type,
+    categoryId: draft.categoryId,
     name: draft.name,
     frequency: draft.frequency,
     baseBudget: draft.baseBudget,
@@ -72,7 +72,7 @@ export async function updateSpendPlan(
   await appDb.transaction('rw', appDb.spendPlans, appDb.families, async () => {
     await appDb.spendPlans.update(planId, {
       personId: draft.personId,
-      type: draft.type,
+      categoryId: draft.categoryId,
       name: draft.name,
       frequency: draft.frequency,
       baseBudget: draft.baseBudget,

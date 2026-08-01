@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import type { Person } from '../../shared/domain/types'
+import type { Category, Person } from '../../shared/domain/types'
 import { SpendPlanIdentityFields } from './SpendPlanIdentityFields'
 import { SpendPlanScheduleFields } from './SpendPlanScheduleFields'
 import { StepEditor } from './StepEditor'
@@ -12,7 +12,7 @@ interface SpendPlanFormProps {
   disabled?: boolean
   hideTitle?: boolean
   persons: Person[]
-  knownTypes: string[]
+  categories: Category[]
   initialDraft?: SpendPlanDraft
   onSubmit: (draft: SpendPlanDraft) => Promise<void>
   onCancel?: () => void
@@ -22,7 +22,7 @@ const defaultStartMonth = new Date().toISOString().slice(0, 7)
 
 const defaultDraft: SpendPlanDraft = {
   personId: undefined,
-  type: '',
+  categoryId: 0,
   name: '',
   frequency: 'Monthly',
   baseBudget: 0,
@@ -39,7 +39,7 @@ export function SpendPlanForm({
   disabled = false,
   hideTitle = false,
   persons,
-  knownTypes,
+  categories,
   initialDraft,
   onSubmit,
   onCancel,
@@ -56,7 +56,7 @@ export function SpendPlanForm({
 
     const normalizedDraft: SpendPlanDraft = {
       personId: draft.personId,
-      type: draft.type.trim(),
+      categoryId: draft.categoryId,
       name: draft.name.trim(),
       frequency: draft.frequency,
       baseBudget: draft.baseBudget,
@@ -72,7 +72,7 @@ export function SpendPlanForm({
       (normalizedDraft.dayOfDeduction < 1 || normalizedDraft.dayOfDeduction > 31)
 
     if (
-      !normalizedDraft.type ||
+      !normalizedDraft.categoryId ||
       !normalizedDraft.name ||
       !normalizedDraft.quantity ||
       !normalizedDraft.startMonth ||
@@ -105,7 +105,7 @@ export function SpendPlanForm({
         draft={draft}
         onChange={patchDraft}
         persons={persons}
-        knownTypes={knownTypes}
+        categories={categories}
         disabled={fieldsDisabled}
       />
 

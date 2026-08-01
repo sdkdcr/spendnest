@@ -2,7 +2,7 @@ export type PlanSortKey = 'cost-desc' | 'cost-asc' | 'category'
 
 export interface SortablePlan {
   amount: number
-  type: string
+  categoryName: string
   name: string
 }
 
@@ -21,7 +21,7 @@ export function sortPlansByKey<T extends SortablePlan>(plans: T[], key: PlanSort
       return sorted.sort((a, b) => a.amount - b.amount)
     case 'category':
       return sorted.sort(
-        (a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name),
+        (a, b) => a.categoryName.localeCompare(b.categoryName) || a.name.localeCompare(b.name),
       )
   }
 }

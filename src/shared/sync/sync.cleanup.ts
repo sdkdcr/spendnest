@@ -32,11 +32,13 @@ export async function deregisterLocalAndCloud(): Promise<void> {
     'rw',
     appDb.families,
     appDb.persons,
+    appDb.categories,
     appDb.spendPlans,
     async () => {
       await Promise.all([
         appDb.families.clear(),
         appDb.persons.clear(),
+        appDb.categories.clear(),
         appDb.spendPlans.clear(),
       ])
     },
@@ -45,6 +47,7 @@ export async function deregisterLocalAndCloud(): Promise<void> {
   await Promise.all(
     cloudFamilyIds.flatMap((cloudFamilyId) => [
       deleteSubCollectionOrphans(cloudFamilyId, 'persons', new Set()),
+      deleteSubCollectionOrphans(cloudFamilyId, 'categories', new Set()),
       deleteSubCollectionOrphans(cloudFamilyId, 'spendPlans', new Set()),
       deleteCloudFamilyDoc(cloudFamilyId),
     ]),
@@ -70,20 +73,23 @@ export async function repairCloudData(
   let totalDeleted = 0
 
   for (const family of cloudReadyFamilies) {
-    const [localPersons, localPlans] = await Promise.all([
+    const [localPersons, localCategories, localPlans] = await Promise.all([
       appDb.persons.where('familyId').equals(family.id).toArray(),
+      appDb.categories.where('familyId').equals(family.id).toArray(),
       appDb.spendPlans.where('familyId').equals(family.id).toArray(),
     ])
 
     const personIds = new Set(localPersons.map((p) => String(p.id)).filter(Boolean))
+    const categoryIds = new Set(localCategories.map((c) => String(c.id)).filter(Boolean))
     const planIds = new Set(localPlans.map((p) => String(p.id)).filter(Boolean))
 
-    const [d1, d2] = await Promise.all([
+    const [d1, d2, d3] = await Promise.all([
       deleteSubCollectionOrphans(family.cloudFamilyId, 'persons', personIds),
+      deleteSubCollectionOrphans(family.cloudFamilyId, 'categories', categoryIds),
       deleteSubCollectionOrphans(family.cloudFamilyId, 'spendPlans', planIds),
     ])
 
-    totalDeleted += d1 + d2
+    totalDeleted += d1 + d2 + d3
   }
 
   const { pushed } = await pushLocalDataToCloud(uid, normalizedEmail)

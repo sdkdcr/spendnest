@@ -1,14 +1,18 @@
 import Dexie, { type Table } from 'dexie'
-import type { Family, Person, SpendPlan } from '../domain/types'
+import { generateClientId } from '../domain/id'
+import type { Category, Family, Person, SpendPlan } from '../domain/types'
+import { migrateSpendPlanTypesToCategories } from './category-migration'
 import {
   migrateLegacySpendTemplates,
   type LegacyMonthlySpendEntry,
+  type LegacySpendPlanWithType,
   type LegacySpendTemplate,
 } from './legacy-migration'
 
 class SpendNestDb extends Dexie {
   families!: Table<Family, number>
   persons!: Table<Person, number>
+  categories!: Table<Category, number>
   spendPlans!: Table<SpendPlan, number>
 
   public constructor() {
@@ -50,6 +54,33 @@ class SpendNestDb extends Dexie {
 
         if (plans.length > 0) {
           await transaction.table('spendPlans').bulkAdd(plans)
+        }
+      })
+
+    this.version(4)
+      .stores({
+        families: '++id, name, cloudFamilyId, updatedAt',
+        persons: '++id, familyId, name, updatedAt',
+        categories: '++id, familyId, name, updatedAt',
+        spendPlans: '++id, familyId, personId, frequency, categoryId, updatedAt',
+      })
+      .upgrade(async (transaction) => {
+        const legacyPlans = (await transaction
+          .table('spendPlans')
+          .toArray()) as LegacySpendPlanWithType[]
+
+        const { categories, spendPlans } = migrateSpendPlanTypesToCategories(
+          legacyPlans,
+          generateClientId,
+          new Date().toISOString(),
+        )
+
+        if (categories.length > 0) {
+          await transaction.table('categories').bulkAdd(categories)
+        }
+
+        for (const plan of spendPlans) {
+          await transaction.table('spendPlans').put(plan)
         }
       })
   }

@@ -1,14 +1,17 @@
 import { ZodError } from 'zod'
 import { appDb } from '../../shared/db/appDb'
+import { migrateSpendPlanTypesToCategories } from '../../shared/db/category-migration'
 import { migrateLegacySpendTemplates } from '../../shared/db/legacy-migration'
+import { generateClientId } from '../../shared/domain/id'
 import { requestAutoSync } from '../../shared/sync/auto-sync'
 import {
   backupPayloadSchema,
-  legacyBackupPayloadSchema,
+  legacyV1BackupPayloadSchema,
+  legacyV2BackupPayloadSchema,
   type BackupPayload,
 } from './backup.schema'
 
-const CURRENT_BACKUP_VERSION = 2
+const CURRENT_BACKUP_VERSION = 3
 
 function formatValidationError(error: ZodError): string {
   const firstIssue = error.issues[0]
@@ -21,9 +24,10 @@ function formatValidationError(error: ZodError): string {
 }
 
 export async function createBackupPayload(): Promise<BackupPayload> {
-  const [families, persons, spendPlans] = await Promise.all([
+  const [families, persons, categories, spendPlans] = await Promise.all([
     appDb.families.toArray(),
     appDb.persons.toArray(),
+    appDb.categories.toArray(),
     appDb.spendPlans.toArray(),
   ])
 
@@ -33,6 +37,7 @@ export async function createBackupPayload(): Promise<BackupPayload> {
     data: {
       families,
       persons,
+      categories,
       spendPlans,
     },
   }
@@ -56,20 +61,46 @@ export function parseBackupJson(rawJson: string): BackupPayload {
     return currentResult.data
   }
 
-  const legacyResult = legacyBackupPayloadSchema.safeParse(parsed)
-  if (legacyResult.success) {
-    const migratedPlans = migrateLegacySpendTemplates(
-      legacyResult.data.data.spendTemplates,
-      legacyResult.data.data.monthlySpendEntries,
+  const legacyV2Result = legacyV2BackupPayloadSchema.safeParse(parsed)
+  if (legacyV2Result.success) {
+    const { categories, spendPlans } = migrateSpendPlanTypesToCategories(
+      legacyV2Result.data.data.spendPlans,
+      generateClientId,
+      legacyV2Result.data.exportedAt,
     )
 
     return {
       backupVersion: CURRENT_BACKUP_VERSION,
-      exportedAt: legacyResult.data.exportedAt,
+      exportedAt: legacyV2Result.data.exportedAt,
       data: {
-        families: legacyResult.data.data.families,
-        persons: legacyResult.data.data.persons,
-        spendPlans: migratedPlans,
+        families: legacyV2Result.data.data.families,
+        persons: legacyV2Result.data.data.persons,
+        categories,
+        spendPlans,
+      },
+    }
+  }
+
+  const legacyV1Result = legacyV1BackupPayloadSchema.safeParse(parsed)
+  if (legacyV1Result.success) {
+    const migratedPlans = migrateLegacySpendTemplates(
+      legacyV1Result.data.data.spendTemplates,
+      legacyV1Result.data.data.monthlySpendEntries,
+    )
+    const { categories, spendPlans } = migrateSpendPlanTypesToCategories(
+      migratedPlans,
+      generateClientId,
+      legacyV1Result.data.exportedAt,
+    )
+
+    return {
+      backupVersion: CURRENT_BACKUP_VERSION,
+      exportedAt: legacyV1Result.data.exportedAt,
+      data: {
+        families: legacyV1Result.data.data.families,
+        persons: legacyV1Result.data.data.persons,
+        categories,
+        spendPlans,
       },
     }
   }
@@ -82,9 +113,11 @@ export async function restoreBackup(payload: BackupPayload): Promise<void> {
     'rw',
     appDb.families,
     appDb.persons,
+    appDb.categories,
     appDb.spendPlans,
     async () => {
       await appDb.spendPlans.clear()
+      await appDb.categories.clear()
       await appDb.persons.clear()
       await appDb.families.clear()
 
@@ -94,6 +127,10 @@ export async function restoreBackup(payload: BackupPayload): Promise<void> {
 
       if (payload.data.persons.length > 0) {
         await appDb.persons.bulkPut(payload.data.persons)
+      }
+
+      if (payload.data.categories.length > 0) {
+        await appDb.categories.bulkPut(payload.data.categories)
       }
 
       if (payload.data.spendPlans.length > 0) {

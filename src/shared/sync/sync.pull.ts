@@ -1,7 +1,7 @@
 import type { Table } from 'dexie'
 import { appDb } from '../db/appDb'
 import { generateClientId } from '../domain/id'
-import type { Family, Person, SpendPlan } from '../domain/types'
+import type { Category, Family, Person, SpendPlan } from '../domain/types'
 import { loadSharedFamilyData } from '../firebase/firestore.family-sync'
 import {
   normalizeEmail,
@@ -97,6 +97,7 @@ export async function pullCloudDataToLocal(email: string): Promise<PullSummary> 
     'rw',
     appDb.families,
     appDb.persons,
+    appDb.categories,
     appDb.spendPlans,
     async () => {
       for (const bundle of familyBundles) {
@@ -111,12 +112,17 @@ export async function pullCloudDataToLocal(email: string): Promise<PullSummary> 
           ...person,
           familyId: localFamilyId,
         }))
+        const localizedCategories = bundle.categories.map((category) => ({
+          ...category,
+          familyId: localFamilyId,
+        }))
         const localizedPlans = bundle.spendPlans.map((plan) => ({
           ...plan,
           familyId: localFamilyId,
         }))
 
         mergedCount += await mergeRemoteTable<Person>(appDb.persons, localizedPersons)
+        mergedCount += await mergeRemoteTable<Category>(appDb.categories, localizedCategories)
         mergedCount += await mergeRemoteTable<SpendPlan>(appDb.spendPlans, localizedPlans)
       }
     },

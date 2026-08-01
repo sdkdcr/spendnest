@@ -12,7 +12,7 @@ import { getFirebaseApp } from './firebaseApp'
 
 export const WRITE_BATCH_LIMIT = 400
 
-export type FamilySubCollectionName = 'persons' | 'spendPlans'
+export type FamilySubCollectionName = 'persons' | 'categories' | 'spendPlans'
 
 export interface CloudFamilyDoc {
   cloudFamilyId: string
