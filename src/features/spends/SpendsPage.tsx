@@ -1,29 +1,14 @@
 import { useMemo, useState } from 'react'
 import type { Category, SpendPlan } from '../../shared/domain/types'
 import { useAppStore } from '../../shared/state/useAppStore'
-import { Modal } from '../../shared/ui/Modal'
 import { useFamilyCategories } from '../settings/useFamilyCategories'
-import { SpendPlanForm } from './SpendPlanForm'
+import { SpendPlanFilterBar, type SpendPlanGroupBy } from './SpendPlanFilterBar'
 import { SpendPlanList } from './SpendPlanList'
+import { SpendPlanModals } from './SpendPlanModals'
 import type { SpendPlanDraft } from './spend-plan.repository'
 import { useFamilyPersons } from './useFamilyPersons'
 import { useSpendPlans } from './useSpendPlans'
 import './spends.css'
-
-function toDraft(plan: SpendPlan): SpendPlanDraft {
-  return {
-    personId: plan.personId,
-    categoryId: plan.categoryId,
-    name: plan.name,
-    frequency: plan.frequency,
-    baseBudget: plan.baseBudget,
-    startMonth: plan.startMonth,
-    endDate: plan.endDate,
-    dayOfDeduction: plan.dayOfDeduction,
-    quantity: plan.quantity,
-    steps: plan.steps,
-  }
-}
 
 export function SpendsPage() {
   const selectedFamilyId = useAppStore((state) => state.selectedFamilyId)
@@ -40,7 +25,8 @@ export function SpendsPage() {
 
   const [editingPlanId, setEditingPlanId] = useState<number | null>(null)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-  const [groupBy, setGroupBy] = useState<'none' | 'category' | 'frequency'>('none')
+  const [groupBy, setGroupBy] = useState<SpendPlanGroupBy>('none')
+  const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null)
 
   const categoriesById = useMemo(() => {
     return categories.reduce<Record<number, Category>>((acc, category) => {
@@ -52,12 +38,32 @@ export function SpendsPage() {
     }, {})
   }, [categories])
 
+  const effectiveSelectedPersonId = useMemo(() => {
+    if (selectedPersonId === null) {
+      return null
+    }
+
+    const hasSelectedPerson = familyPersons.some(
+      (person) => person.id === selectedPersonId,
+    )
+
+    return hasSelectedPerson ? selectedPersonId : null
+  }, [familyPersons, selectedPersonId])
+
+  const filteredPlans = useMemo(() => {
+    if (effectiveSelectedPersonId === null) {
+      return spendPlans
+    }
+
+    return spendPlans.filter((plan) => plan.personId === effectiveSelectedPersonId)
+  }, [spendPlans, effectiveSelectedPersonId])
+
   const groupedPlans = useMemo(() => {
     if (groupBy === 'none') {
-      return [{ key: 'all', label: null, plans: spendPlans }]
+      return [{ key: 'all', label: null, plans: filteredPlans }]
     }
     const groups = new Map<string, SpendPlan[]>()
-    for (const plan of spendPlans) {
+    for (const plan of filteredPlans) {
       const key =
         groupBy === 'category' ? String(plan.categoryId) : plan.frequency
       const existing = groups.get(key)
@@ -71,7 +77,7 @@ export function SpendsPage() {
         plans,
       }))
       .sort((a, b) => a.label.localeCompare(b.label))
-  }, [spendPlans, groupBy, categoriesById])
+  }, [filteredPlans, groupBy, categoriesById])
 
   const personNamesById = useMemo(() => {
     return familyPersons.reduce<Record<number, string>>((acc, person) => {
@@ -135,82 +141,42 @@ export function SpendsPage() {
         </p>
       ) : (
         <>
-          <div className="spend-template-toolbar">
-            <button
-              className="families-button families-button-primary"
-              type="button"
-              onClick={() => {
-                setIsCreateModalOpen(true)
-              }}
-            >
-              Add Spend Plan
-            </button>
-            <div className="spend-group-by">
-              <span className="spend-group-by-label">Group:</span>
-              {(['none', 'category', 'frequency'] as const).map((option) => (
-                <button
-                  key={option}
-                  className={`families-button${groupBy === option ? ' families-button-primary' : ''}`}
-                  type="button"
-                  onClick={() => { setGroupBy(option) }}
-                >
-                  {option === 'none' ? 'None' : option === 'category' ? 'Category' : 'Frequency'}
-                </button>
-              ))}
-            </div>
-          </div>
+          <SpendPlanFilterBar
+            familyPersons={familyPersons}
+            selectedPersonId={effectiveSelectedPersonId}
+            onSelectedPersonIdChange={setSelectedPersonId}
+            groupBy={groupBy}
+            onGroupByChange={setGroupBy}
+            onAddPlan={() => {
+              setIsCreateModalOpen(true)
+            }}
+          />
 
-          {isCreateModalOpen ? (
-            <Modal
-              title="Create Spend Plan"
-              onClose={() => {
-                setIsCreateModalOpen(false)
-              }}
-            >
-              <SpendPlanForm
-                key="create-plan-form"
-                title="Create Spend Plan"
-                submitLabel="Add Plan"
-                hideTitle
-                persons={familyPersons}
-                categories={categories}
-                onSubmit={handleCreatePlan}
-                onCancel={() => {
-                  setIsCreateModalOpen(false)
-                }}
-              />
-            </Modal>
-          ) : null}
-
-          {editingPlan ? (
-            <Modal
-              title="Edit Spend Plan"
-              onClose={() => {
-                setEditingPlanId(null)
-              }}
-            >
-              <SpendPlanForm
-                key={`edit-plan-${editingPlan.id ?? 'unknown'}`}
-                title="Edit Spend Plan"
-                submitLabel="Save Changes"
-                hideTitle
-                persons={familyPersons}
-                categories={categories}
-                initialDraft={toDraft(editingPlan)}
-                onSubmit={handleUpdatePlan}
-                onCancel={() => {
-                  setEditingPlanId(null)
-                }}
-              />
-            </Modal>
-          ) : null}
+          <SpendPlanModals
+            persons={familyPersons}
+            categories={categories}
+            isCreateModalOpen={isCreateModalOpen}
+            onCloseCreateModal={() => {
+              setIsCreateModalOpen(false)
+            }}
+            onCreatePlan={handleCreatePlan}
+            editingPlan={editingPlan}
+            onCloseEditModal={() => {
+              setEditingPlanId(null)
+            }}
+            onUpdatePlan={handleUpdatePlan}
+          />
 
           {errorMessage ? <p className="families-error">{errorMessage}</p> : null}
 
           {isLoading ? (
             <p className="families-help">Loading spend plans...</p>
-          ) : spendPlans.length === 0 ? (
-            <p className="families-help">No spend plans added yet.</p>
+          ) : filteredPlans.length === 0 ? (
+            <p className="families-help">
+              {spendPlans.length === 0
+                ? 'No spend plans added yet.'
+                : 'No spend plans for this person.'}
+            </p>
           ) : (
             <div className="spend-groups">
               {groupedPlans.map(({ key, label, plans }) => (

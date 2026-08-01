@@ -23,6 +23,9 @@ export interface Category {
   familyId: number
   name: string
   color: string
+  isRetirementCorpus?: boolean
+  retirementCurrentBalance?: number
+  retirementAnnualGrowthRatePercent?: number
   createdAt: string
   updatedAt: string
 }

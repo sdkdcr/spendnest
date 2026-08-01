@@ -1,15 +1,24 @@
 import { useState } from 'react'
+import type { RetirementSettings } from './category.repository'
+import { CategoryRetirementFields } from './CategoryRetirementFields'
 import type { CategoryWithUsage } from './useCategoryManager'
 
 interface CategoryListProps {
   categories: CategoryWithUsage[]
   onRename: (categoryId: number, name: string) => Promise<boolean>
+  onUpdateRetirementSettings: (categoryId: number, settings: RetirementSettings) => Promise<boolean>
   onDelete: (categoryId: number) => void
 }
 
-export function CategoryList({ categories, onRename, onDelete }: CategoryListProps) {
+export function CategoryList({
+  categories,
+  onRename,
+  onUpdateRetirementSettings,
+  onDelete,
+}: CategoryListProps) {
   const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null)
   const [editingCategoryName, setEditingCategoryName] = useState('')
+  const [expandedCategoryId, setExpandedCategoryId] = useState<number | null>(null)
 
   async function handleSaveRename(categoryId: number) {
     const normalizedName = editingCategoryName.trim()
@@ -60,6 +69,15 @@ export function CategoryList({ categories, onRename, onDelete }: CategoryListPro
                   Rename
                 </button>
                 <button
+                  className="families-button"
+                  type="button"
+                  onClick={() => {
+                    setExpandedCategoryId(expandedCategoryId === categoryId ? null : categoryId)
+                  }}
+                >
+                  {category.isRetirementCorpus ? 'Retirement: On' : 'Retirement'}
+                </button>
+                <button
                   className="families-button families-button-delete"
                   type="button"
                   disabled={isInUse}
@@ -72,6 +90,19 @@ export function CategoryList({ categories, onRename, onDelete }: CategoryListPro
                 </button>
               </div>
             </div>
+
+            {expandedCategoryId === categoryId ? (
+              <CategoryRetirementFields
+                category={category}
+                onSave={async (settings) => {
+                  const updated = await onUpdateRetirementSettings(categoryId, settings)
+                  if (updated) {
+                    setExpandedCategoryId(null)
+                  }
+                  return updated
+                }}
+              />
+            ) : null}
 
             {isEditing ? (
               <div className="family-edit">
