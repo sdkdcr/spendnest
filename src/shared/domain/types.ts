@@ -1,12 +1,11 @@
 export type SpendFrequency = 'Monthly' | 'Quarterly' | 'Annually' | 'AdHoc'
 
-export type MonthlySpendStatus = 'Spent' | 'Not Yet' | 'Skip'
-
 export interface Family {
   id?: number
   name: string
   memberEmails?: string[]
   cloudFamilyId?: string
+  lastModifiedAt?: string
   createdAt: string
   updatedAt: string
 }
@@ -19,36 +18,25 @@ export interface Person {
   updatedAt: string
 }
 
-export interface SpendTemplate {
+export interface StepChange {
+  effectiveDate: string
+  amount: number
+  oneOff?: boolean
+}
+
+export interface SpendPlan {
   id?: number
   familyId: number
   personId?: number
   type: string
   name: string
   frequency: SpendFrequency
-  cost: number
+  baseBudget: number
+  startMonth: string
+  endDate?: string
+  dayOfDeduction?: number
   quantity: string
-  emiAmount?: number
-  deductionDayOfMonth?: number
-  emiEndMonth?: string
-  startMonth?: string
-  createdAt: string
-  updatedAt: string
-}
-
-export interface MonthlySpendEntry {
-  id?: number
-  familyId: number
-  templateId: number
-  personId?: number
-  monthKey: string
-  type: string
-  name: string
-  cost: number
-  quantity: string
-  status: MonthlySpendStatus
-  usage: number
-  manuallyUpdatedStatus: boolean
+  steps: StepChange[]
   createdAt: string
   updatedAt: string
 }

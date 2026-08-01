@@ -66,7 +66,7 @@ export function BackupPanel() {
   return (
     <div className="settings-backup-panel">
       <h3>Backup and Restore</h3>
-      <p className="field-help">Backup format: JSON (`backupVersion: 1`).</p>
+      <p className="field-help">Backup format: JSON (`backupVersion: 2`). Older `backupVersion: 1` files are migrated automatically on import.</p>
 
       <div className="settings-backup-actions">
         <button

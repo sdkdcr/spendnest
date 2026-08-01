@@ -1,28 +1,28 @@
 import { useMemo, useState } from 'react'
-import type { SpendTemplate } from '../../shared/domain/types'
+import type { SpendPlan } from '../../shared/domain/types'
 import { useAppStore } from '../../shared/state/useAppStore'
 import { Modal } from '../../shared/ui/Modal'
 import { buildCategoryColorMap } from '../dashboard/category-colors'
 import { DEFAULT_SPEND_CATEGORIES } from './spend-categories'
-import { SpendTemplateForm } from './SpendTemplateForm'
-import { SpendTemplateList } from './SpendTemplateList'
-import type { SpendTemplateDraft } from './spend-template.repository'
+import { SpendPlanForm } from './SpendPlanForm'
+import { SpendPlanList } from './SpendPlanList'
+import type { SpendPlanDraft } from './spend-plan.repository'
 import { useFamilyPersons } from './useFamilyPersons'
-import { useSpendTemplates } from './useSpendTemplates'
+import { useSpendPlans } from './useSpendPlans'
 import './spends.css'
 
-function toDraft(template: SpendTemplate): SpendTemplateDraft {
+function toDraft(plan: SpendPlan): SpendPlanDraft {
   return {
-    personId: template.personId,
-    type: template.type,
-    name: template.name,
-    frequency: template.frequency,
-    cost: template.cost,
-    quantity: template.quantity,
-    emiAmount: template.emiAmount,
-    deductionDayOfMonth: template.deductionDayOfMonth,
-    emiEndMonth: template.emiEndMonth,
-    startMonth: template.startMonth,
+    personId: plan.personId,
+    type: plan.type,
+    name: plan.name,
+    frequency: plan.frequency,
+    baseBudget: plan.baseBudget,
+    startMonth: plan.startMonth,
+    endDate: plan.endDate,
+    dayOfDeduction: plan.dayOfDeduction,
+    quantity: plan.quantity,
+    steps: plan.steps,
   }
 }
 
@@ -30,38 +30,38 @@ export function SpendsPage() {
   const selectedFamilyId = useAppStore((state) => state.selectedFamilyId)
   const familyPersons = useFamilyPersons(selectedFamilyId)
   const {
-    spendTemplates,
+    spendPlans,
     isLoading,
     errorMessage,
-    createSpendTemplate,
-    updateSpendTemplate,
-    deleteSpendTemplate,
-  } = useSpendTemplates(selectedFamilyId)
+    createSpendPlan,
+    updateSpendPlan,
+    deleteSpendPlan,
+  } = useSpendPlans(selectedFamilyId)
 
-  const [editingTemplateId, setEditingTemplateId] = useState<number | null>(null)
+  const [editingPlanId, setEditingPlanId] = useState<number | null>(null)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [groupBy, setGroupBy] = useState<'none' | 'category' | 'frequency'>('none')
 
-  const groupedTemplates = useMemo(() => {
+  const groupedPlans = useMemo(() => {
     if (groupBy === 'none') {
-      return [{ key: 'all', label: null, templates: spendTemplates }]
+      return [{ key: 'all', label: null, plans: spendPlans }]
     }
-    const groups = new Map<string, SpendTemplate[]>()
-    for (const template of spendTemplates) {
-      const key = groupBy === 'category' ? template.type : template.frequency
+    const groups = new Map<string, SpendPlan[]>()
+    for (const plan of spendPlans) {
+      const key = groupBy === 'category' ? plan.type : plan.frequency
       const existing = groups.get(key)
-      if (existing) existing.push(template)
-      else groups.set(key, [template])
+      if (existing) existing.push(plan)
+      else groups.set(key, [plan])
     }
     return Array.from(groups.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, templates]) => ({ key, label: key, templates }))
-  }, [spendTemplates, groupBy])
+      .map(([key, plans]) => ({ key, label: key, plans }))
+  }, [spendPlans, groupBy])
 
   const knownTypes = useMemo(() => {
-    const custom = spendTemplates.map((t) => t.type).filter(Boolean)
+    const custom = spendPlans.map((p) => p.type).filter(Boolean)
     return Array.from(new Set([...DEFAULT_SPEND_CATEGORIES, ...custom]))
-  }, [spendTemplates])
+  }, [spendPlans])
 
   const categoryColorByType = useMemo(
     () => buildCategoryColorMap(knownTypes),
@@ -78,44 +78,40 @@ export function SpendsPage() {
     }, {})
   }, [familyPersons])
 
-  const editingTemplate = useMemo(() => {
-    if (editingTemplateId === null) {
+  const editingPlan = useMemo(() => {
+    if (editingPlanId === null) {
       return null
     }
 
-    return (
-      spendTemplates.find((template) => template.id === editingTemplateId) ?? null
-    )
-  }, [editingTemplateId, spendTemplates])
+    return spendPlans.find((plan) => plan.id === editingPlanId) ?? null
+  }, [editingPlanId, spendPlans])
 
-  async function handleCreateTemplate(draft: SpendTemplateDraft) {
-    await createSpendTemplate(draft)
+  async function handleCreatePlan(draft: SpendPlanDraft) {
+    await createSpendPlan(draft)
     setIsCreateModalOpen(false)
   }
 
-  async function handleUpdateTemplate(draft: SpendTemplateDraft) {
-    if (editingTemplateId === null) {
+  async function handleUpdatePlan(draft: SpendPlanDraft) {
+    if (editingPlanId === null) {
       return
     }
 
-    const updated = await updateSpendTemplate(editingTemplateId, draft)
+    const updated = await updateSpendPlan(editingPlanId, draft)
     if (updated) {
-      setEditingTemplateId(null)
+      setEditingPlanId(null)
     }
   }
 
-  async function handleDeleteTemplate(templateId: number) {
-    const shouldDelete = window.confirm(
-      'Delete this spend template and related monthly entries?',
-    )
+  async function handleDeletePlan(planId: number) {
+    const shouldDelete = window.confirm('Delete this spend plan?')
 
     if (!shouldDelete) {
       return
     }
 
-    const deleted = await deleteSpendTemplate(templateId)
-    if (deleted && editingTemplateId === templateId) {
-      setEditingTemplateId(null)
+    const deleted = await deleteSpendPlan(planId)
+    if (deleted && editingPlanId === planId) {
+      setEditingPlanId(null)
     }
   }
 
@@ -124,13 +120,13 @@ export function SpendsPage() {
       <div>
         <h2>Spends</h2>
         <p className="families-help">
-          Manage spend templates for the active family.
+          Manage spend plans for the active family.
         </p>
       </div>
 
       {selectedFamilyId === null ? (
         <p className="families-help">
-          Select an active family in the Families tab to create spend templates.
+          Select an active family in the Families tab to create spend plans.
         </p>
       ) : (
         <>
@@ -142,7 +138,7 @@ export function SpendsPage() {
                 setIsCreateModalOpen(true)
               }}
             >
-              Add Spend Template
+              Add Spend Plan
             </button>
             <div className="spend-group-by">
               <span className="spend-group-by-label">Group:</span>
@@ -161,19 +157,19 @@ export function SpendsPage() {
 
           {isCreateModalOpen ? (
             <Modal
-              title="Create Spend Template"
+              title="Create Spend Plan"
               onClose={() => {
                 setIsCreateModalOpen(false)
               }}
             >
-              <SpendTemplateForm
-                key="create-template-form"
-                title="Create Spend Template"
-                submitLabel="Add Template"
+              <SpendPlanForm
+                key="create-plan-form"
+                title="Create Spend Plan"
+                submitLabel="Add Plan"
                 hideTitle
                 persons={familyPersons}
                 knownTypes={knownTypes}
-                onSubmit={handleCreateTemplate}
+                onSubmit={handleCreatePlan}
                 onCancel={() => {
                   setIsCreateModalOpen(false)
                 }}
@@ -181,24 +177,24 @@ export function SpendsPage() {
             </Modal>
           ) : null}
 
-          {editingTemplate ? (
+          {editingPlan ? (
             <Modal
-              title="Edit Spend Template"
+              title="Edit Spend Plan"
               onClose={() => {
-                setEditingTemplateId(null)
+                setEditingPlanId(null)
               }}
             >
-              <SpendTemplateForm
-                key={`edit-template-${editingTemplate.id ?? 'unknown'}`}
-                title="Edit Spend Template"
+              <SpendPlanForm
+                key={`edit-plan-${editingPlan.id ?? 'unknown'}`}
+                title="Edit Spend Plan"
                 submitLabel="Save Changes"
                 hideTitle
                 persons={familyPersons}
                 knownTypes={knownTypes}
-                initialDraft={toDraft(editingTemplate)}
-                onSubmit={handleUpdateTemplate}
+                initialDraft={toDraft(editingPlan)}
+                onSubmit={handleUpdatePlan}
                 onCancel={() => {
-                  setEditingTemplateId(null)
+                  setEditingPlanId(null)
                 }}
               />
             </Modal>
@@ -207,23 +203,23 @@ export function SpendsPage() {
           {errorMessage ? <p className="families-error">{errorMessage}</p> : null}
 
           {isLoading ? (
-            <p className="families-help">Loading spend templates...</p>
-          ) : spendTemplates.length === 0 ? (
-            <p className="families-help">No spend templates added yet.</p>
+            <p className="families-help">Loading spend plans...</p>
+          ) : spendPlans.length === 0 ? (
+            <p className="families-help">No spend plans added yet.</p>
           ) : (
             <div className="spend-groups">
-              {groupedTemplates.map(({ key, label, templates }) => (
+              {groupedPlans.map(({ key, label, plans }) => (
                 <div key={key} className="spend-group">
                   {label !== null && <h3 className="spend-group-heading">{label}</h3>}
-                  <SpendTemplateList
-                    spendTemplates={templates}
+                  <SpendPlanList
+                    spendPlans={plans}
                     personNamesById={personNamesById}
                     categoryColorByType={categoryColorByType}
-                    onEdit={(template) => {
-                      if (template.id !== undefined) setEditingTemplateId(template.id)
+                    onEdit={(plan) => {
+                      if (plan.id !== undefined) setEditingPlanId(plan.id)
                     }}
-                    onDelete={(templateId) => {
-                      void handleDeleteTemplate(templateId)
+                    onDelete={(planId) => {
+                      void handleDeletePlan(planId)
                     }}
                   />
                 </div>

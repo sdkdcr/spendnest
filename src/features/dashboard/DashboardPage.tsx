@@ -1,13 +1,15 @@
 import { useMemo, useState } from 'react'
-import { BudgetBreakdownChart } from './BudgetBreakdownChart'
-import { CategoryPieChart } from './CategoryPieChart'
-import { MonthlyStatusPanel } from './MonthlyStatusPanel'
-import { buildCategoryColorMap } from './category-colors'
-import './dashboard.css'
 import { useAppStore } from '../../shared/state/useAppStore'
-import { useMonthlyGeneration } from '../spends/useMonthlyGeneration'
 import { useFamilyPersons } from '../spends/useFamilyPersons'
-import { useMonthlyStatus } from './useMonthlyStatus'
+import { BudgetProjectionChart } from './BudgetProjectionChart'
+import { BudgetTotalCard } from './BudgetTotalCard'
+import { CategoryPieChart } from './CategoryPieChart'
+import { SpendPlanPanel } from './SpendPlanPanel'
+import { buildCategoryColorMap } from './category-colors'
+import { resolvePlansForMonth } from './resolved-plan'
+import { useBudgetProjection } from './useBudgetProjection'
+import { useDashboardData } from './useDashboardData'
+import './dashboard.css'
 
 export function DashboardPage() {
   const selectedFamilyId = useAppStore((state) => state.selectedFamilyId)
@@ -15,18 +17,9 @@ export function DashboardPage() {
   const familyPersons = useFamilyPersons(selectedFamilyId)
   const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null)
 
-  const { result, isSyncing, errorMessage: generationError } = useMonthlyGeneration(
-    selectedFamilyId,
-    selectedMonthKey,
-  )
+  const { spendPlans, isLoading, errorMessage } = useDashboardData(selectedFamilyId)
+  const projectionData = useBudgetProjection(spendPlans, selectedMonthKey)
 
-  const {
-    entries,
-    isLoading: isLoadingEntries,
-    errorMessage: statusError,
-    setEntryStatus,
-    updateEntryDetails,
-  } = useMonthlyStatus(selectedFamilyId, selectedMonthKey, !isSyncing)
   const effectiveSelectedPersonId = useMemo(() => {
     if (selectedPersonId === null) {
       return null
@@ -49,50 +42,40 @@ export function DashboardPage() {
     }, {})
   }, [familyPersons])
 
-  const visibleEntries = useMemo(() => {
+  const filteredPlans = useMemo(() => {
     if (effectiveSelectedPersonId === null) {
-      return entries
+      return spendPlans
     }
 
-    return entries.filter((entry) => entry.personId === effectiveSelectedPersonId)
-  }, [entries, effectiveSelectedPersonId])
+    return spendPlans.filter((plan) => plan.personId === effectiveSelectedPersonId)
+  }, [spendPlans, effectiveSelectedPersonId])
 
-  const spentEntriesCount = useMemo(() => {
-    return visibleEntries.filter((entry) => entry.status === 'Spent').length
-  }, [visibleEntries])
+  const resolvedPlans = useMemo(
+    () => resolvePlansForMonth(filteredPlans, selectedMonthKey),
+    [filteredPlans, selectedMonthKey],
+  )
 
-  const budgetBreakdown = useMemo(() => {
-    return visibleEntries.reduce(
-      (acc, entry) => {
-        acc.budget += entry.cost
-        if (entry.status === 'Spent') acc.spent += entry.cost
-        if (entry.status === 'Not Yet') acc.pending += entry.cost
-        return acc
-      },
-      { budget: 0, spent: 0, pending: 0 },
-    )
-  }, [visibleEntries])
+  const totalAmount = useMemo(
+    () => resolvedPlans.reduce((sum, plan) => sum + plan.amount, 0),
+    [resolvedPlans],
+  )
 
   const categoryTotals = useMemo(() => {
     const totals = new Map<string, number>()
 
-    visibleEntries.forEach((entry) => {
-      if (entry.status !== 'Spent') {
-        return
-      }
-
-      const currentAmount = totals.get(entry.type) ?? 0
-      totals.set(entry.type, currentAmount + entry.cost)
+    resolvedPlans.forEach((plan) => {
+      const currentAmount = totals.get(plan.type) ?? 0
+      totals.set(plan.type, currentAmount + plan.amount)
     })
 
     return Array.from(totals.entries())
       .map(([type, amount]) => ({ type, amount }))
       .sort((a, b) => b.amount - a.amount)
-  }, [visibleEntries])
+  }, [resolvedPlans])
 
   const categoryColorByType = useMemo(() => {
-    return buildCategoryColorMap(visibleEntries.map((entry) => entry.type))
-  }, [visibleEntries])
+    return buildCategoryColorMap(resolvedPlans.map((plan) => plan.type))
+  }, [resolvedPlans])
 
   return (
     <section>
@@ -128,36 +111,18 @@ export function DashboardPage() {
           </div>
 
           <div className="dashboard-chart-panel">
-            <h3>Budget Breakdown</h3>
+            <h3>Budget for {selectedMonthKey}</h3>
 
-            {generationError ? (
-              <p className="families-error">{generationError}</p>
+            {errorMessage ? (
+              <p className="families-error">{errorMessage}</p>
             ) : (
-              <div className="dashboard-budget-stats">
-                <div className="dashboard-budget-stat">
-                  <span className="dashboard-budget-stat-value">{budgetBreakdown.budget.toFixed(2)}</span>
-                  <span className="dashboard-budget-stat-label">Budget</span>
-                </div>
-                <div className="dashboard-budget-stat">
-                  <span className="dashboard-budget-stat-value dashboard-stat-spent">{budgetBreakdown.spent.toFixed(2)}</span>
-                  <span className="dashboard-budget-stat-label">Spent · {spentEntriesCount}</span>
-                </div>
-                <div className="dashboard-budget-stat">
-                  <span className="dashboard-budget-stat-value dashboard-stat-pending">{budgetBreakdown.pending.toFixed(2)}</span>
-                  <span className="dashboard-budget-stat-label">Pending</span>
-                </div>
-              </div>
+              <BudgetTotalCard totalAmount={totalAmount} planCount={resolvedPlans.length} />
             )}
+          </div>
 
-            <BudgetBreakdownChart data={budgetBreakdown} monthKey={selectedMonthKey} />
-
-            <p className="families-help dashboard-budget-footnote">
-              {isSyncing
-                ? 'Updating entries...'
-                : result
-                  ? `${result.eligibleCount} entries · ${result.createdCount > 0 ? `${result.createdCount} new` : 'up to date'}`
-                  : ''}
-            </p>
+          <div className="dashboard-chart-panel">
+            <h3>Budget Projection</h3>
+            <BudgetProjectionChart data={projectionData} selectedMonthKey={selectedMonthKey} />
           </div>
 
           <div className="dashboard-chart-panel">
@@ -165,18 +130,12 @@ export function DashboardPage() {
             <CategoryPieChart data={categoryTotals} colorByType={categoryColorByType} />
           </div>
 
-          <MonthlyStatusPanel
-            entries={visibleEntries}
+          <SpendPlanPanel
+            plans={resolvedPlans}
             personNamesById={personNamesById}
             categoryColorByType={categoryColorByType}
-            isLoading={isLoadingEntries || isSyncing}
-            errorMessage={statusError}
-            onSetStatus={(entryId, status) => {
-              void setEntryStatus(entryId, status)
-            }}
-            onUpdateEntryDetails={(entryId, patch) => {
-              void updateEntryDetails(entryId, patch)
-            }}
+            isLoading={isLoading}
+            errorMessage={errorMessage}
           />
         </>
       )}

@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { applyTheme, watchDeviceTheme } from '../features/theme/theme.runtime'
 import { appDb } from '../shared/db/appDb'
 import { useAppStore } from '../shared/state/useAppStore'
+import { SyncBanner } from '../shared/ui/SyncBanner'
 import { useAppUpdate } from './useAppUpdate'
 import './app-shell.css'
 
@@ -197,6 +198,8 @@ export function AppShell() {
         </button>
       </div>
     )}
+
+    <SyncBanner />
     </>
   )
 }

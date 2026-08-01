@@ -43,6 +43,7 @@ export async function bootstrapApp() {
       }
 
       appState.setSyncState('idle', 'Signed in. Click "Sync now" to sync data.')
+      void appState.runLaunchSyncCheck()
     })
   }
 

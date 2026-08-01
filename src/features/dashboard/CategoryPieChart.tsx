@@ -13,7 +13,7 @@ interface CategoryPieChartProps {
 
 export function CategoryPieChart({ data, colorByType }: CategoryPieChartProps) {
   if (data.length === 0) {
-    return <p className="families-help">No `Spent` data for chart visualization.</p>
+    return <p className="families-help">No budget data for chart visualization.</p>
   }
 
   return (

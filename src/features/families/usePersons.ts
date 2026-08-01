@@ -72,7 +72,7 @@ export function usePersons(familyId: number | null) {
     setErrorMessage(null)
 
     try {
-      await renamePerson(personId, name)
+      await renamePerson(personId, familyId, name)
       const refreshedPersons = await listPersonsByFamily(familyId)
       setPersons(refreshedPersons)
       return true
@@ -83,10 +83,14 @@ export function usePersons(familyId: number | null) {
   }
 
   async function handleDeletePerson(personId: number): Promise<boolean> {
+    if (familyId === null) {
+      return false
+    }
+
     setErrorMessage(null)
 
     try {
-      await deletePerson(personId)
+      await deletePerson(personId, familyId)
       setPersons((currentPersons) =>
         currentPersons.filter((person) => person.id !== personId),
       )
