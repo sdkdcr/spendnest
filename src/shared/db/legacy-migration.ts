@@ -1,5 +1,13 @@
 import type { SpendPlan, StepChange } from '../domain/types'
 
+// Shape of a spendPlans row before the v3->v4 categories migration: it still
+// carries the free-text `type` field instead of `categoryId`. Used as the
+// intermediate result of migrateLegacySpendTemplates, since SpendPlan itself
+// no longer has a `type` field to migrate into.
+export type LegacySpendPlanWithType = Omit<SpendPlan, 'categoryId'> & {
+  type: string
+}
+
 export interface LegacySpendTemplate {
   id?: number
   familyId: number
@@ -66,7 +74,7 @@ function buildStepsFromHistory(
 export function migrateLegacySpendTemplates(
   templates: LegacySpendTemplate[],
   entries: LegacyMonthlySpendEntry[],
-): SpendPlan[] {
+): LegacySpendPlanWithType[] {
   return templates.map((template) => ({
     id: template.id,
     familyId: template.familyId,

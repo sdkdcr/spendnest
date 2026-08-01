@@ -18,6 +18,15 @@ export interface Person {
   updatedAt: string
 }
 
+export interface Category {
+  id?: number
+  familyId: number
+  name: string
+  color: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface StepChange {
   effectiveDate: string
   amount: number
@@ -28,7 +37,7 @@ export interface SpendPlan {
   id?: number
   familyId: number
   personId?: number
-  type: string
+  categoryId: number
   name: string
   frequency: SpendFrequency
   baseBudget: number

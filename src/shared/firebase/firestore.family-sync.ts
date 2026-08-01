@@ -1,5 +1,5 @@
 import { collection, getDoc, getDocs, query, where, writeBatch } from 'firebase/firestore'
-import type { Family, Person, SpendPlan } from '../domain/types'
+import type { Category, Family, Person, SpendPlan } from '../domain/types'
 import {
   getDb,
   getFamilyRef,
@@ -12,6 +12,7 @@ import {
 export interface SharedFamilyBundle {
   family: Family
   persons: Person[]
+  categories: Category[]
   spendPlans: SpendPlan[]
 }
 
@@ -39,8 +40,9 @@ export async function loadSharedFamilyData(
       const cloudFamily = snapshotDoc.data() as CloudFamilyDoc
       const cloudFamilyId = snapshotDoc.id
 
-      const [persons, spendPlans] = await Promise.all([
+      const [persons, categories, spendPlans] = await Promise.all([
         readFamilySubCollection<Person>(cloudFamilyId, 'persons'),
+        readFamilySubCollection<Category>(cloudFamilyId, 'categories'),
         readFamilySubCollection<SpendPlan>(cloudFamilyId, 'spendPlans'),
       ])
 
@@ -53,7 +55,7 @@ export async function loadSharedFamilyData(
         updatedAt: cloudFamily.updatedAt,
       }
 
-      return { family, persons, spendPlans }
+      return { family, persons, categories, spendPlans }
     }),
   )
 
@@ -102,12 +104,13 @@ export async function pushSharedFamilyData(
 
     totalWrites += 1
 
-    const [personCount, planCount] = await Promise.all([
+    const [personCount, categoryCount, planCount] = await Promise.all([
       upsertSubCollection(cloudFamilyId, 'persons', bundle.persons),
+      upsertSubCollection(cloudFamilyId, 'categories', bundle.categories),
       upsertSubCollection(cloudFamilyId, 'spendPlans', bundle.spendPlans),
     ])
 
-    totalWrites += personCount + planCount
+    totalWrites += personCount + categoryCount + planCount
   }
 
   return totalWrites

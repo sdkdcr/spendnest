@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
+import type { Category } from '../../shared/domain/types'
+import { FALLBACK_CATEGORY_COLOR } from '../../shared/domain/category-palette'
 import { useAppStore } from '../../shared/state/useAppStore'
+import { useFamilyCategories } from '../settings/useFamilyCategories'
 import { useFamilyPersons } from '../spends/useFamilyPersons'
 import { BudgetProjectionChart } from './BudgetProjectionChart'
 import { BudgetTotalCard } from './BudgetTotalCard'
 import { CategoryPieChart } from './CategoryPieChart'
 import { SpendPlanPanel } from './SpendPlanPanel'
-import { buildCategoryColorMap } from './category-colors'
 import { resolvePlansForMonth } from './resolved-plan'
 import { useBudgetProjection } from './useBudgetProjection'
 import { useDashboardData } from './useDashboardData'
@@ -15,10 +17,21 @@ export function DashboardPage() {
   const selectedFamilyId = useAppStore((state) => state.selectedFamilyId)
   const selectedMonthKey = useAppStore((state) => state.selectedMonthKey)
   const familyPersons = useFamilyPersons(selectedFamilyId)
+  const { categories } = useFamilyCategories(selectedFamilyId)
   const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null)
 
   const { spendPlans, isLoading, errorMessage } = useDashboardData(selectedFamilyId)
   const projectionData = useBudgetProjection(spendPlans, selectedMonthKey)
+
+  const categoriesById = useMemo(() => {
+    return categories.reduce<Record<number, Category>>((acc, category) => {
+      if (category.id !== undefined) {
+        acc[category.id] = category
+      }
+
+      return acc
+    }, {})
+  }, [categories])
 
   const effectiveSelectedPersonId = useMemo(() => {
     if (selectedPersonId === null) {
@@ -61,21 +74,22 @@ export function DashboardPage() {
   )
 
   const categoryTotals = useMemo(() => {
-    const totals = new Map<string, number>()
+    const totals = new Map<number, number>()
 
     resolvedPlans.forEach((plan) => {
-      const currentAmount = totals.get(plan.type) ?? 0
-      totals.set(plan.type, currentAmount + plan.amount)
+      const currentAmount = totals.get(plan.categoryId) ?? 0
+      totals.set(plan.categoryId, currentAmount + plan.amount)
     })
 
     return Array.from(totals.entries())
-      .map(([type, amount]) => ({ type, amount }))
+      .map(([categoryId, amount]) => ({
+        categoryId,
+        categoryName: categoriesById[categoryId]?.name ?? 'Unknown category',
+        color: categoriesById[categoryId]?.color ?? FALLBACK_CATEGORY_COLOR,
+        amount,
+      }))
       .sort((a, b) => b.amount - a.amount)
-  }, [resolvedPlans])
-
-  const categoryColorByType = useMemo(() => {
-    return buildCategoryColorMap(resolvedPlans.map((plan) => plan.type))
-  }, [resolvedPlans])
+  }, [resolvedPlans, categoriesById])
 
   return (
     <section>
@@ -127,13 +141,13 @@ export function DashboardPage() {
 
           <div className="dashboard-chart-panel">
             <h3>Category Spend Split</h3>
-            <CategoryPieChart data={categoryTotals} colorByType={categoryColorByType} />
+            <CategoryPieChart data={categoryTotals} />
           </div>
 
           <SpendPlanPanel
             plans={resolvedPlans}
             personNamesById={personNamesById}
-            categoryColorByType={categoryColorByType}
+            categoriesById={categoriesById}
             isLoading={isLoading}
             errorMessage={errorMessage}
           />

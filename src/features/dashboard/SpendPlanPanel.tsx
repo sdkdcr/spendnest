@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { getCategoryColor } from './category-colors'
+import type { Category } from '../../shared/domain/types'
+import { FALLBACK_CATEGORY_COLOR } from '../../shared/domain/category-palette'
 import { computeBudgetScores, scoreToColor, scoreToTextColor } from './budget-score'
 import { PlanSortBar } from './PlanSortBar'
 import { sortPlansByKey, type PlanSortKey } from './plan-sort'
@@ -8,7 +9,7 @@ import type { ResolvedPlan } from './resolved-plan'
 interface SpendPlanPanelProps {
   plans: ResolvedPlan[]
   personNamesById: Record<number, string>
-  categoryColorByType: Record<string, string>
+  categoriesById: Record<number, Category>
   isLoading: boolean
   errorMessage: string | null
 }
@@ -16,7 +17,7 @@ interface SpendPlanPanelProps {
 export function SpendPlanPanel({
   plans,
   personNamesById,
-  categoryColorByType,
+  categoriesById,
   isLoading,
   errorMessage,
 }: SpendPlanPanelProps) {
@@ -26,7 +27,18 @@ export function SpendPlanPanel({
     () => computeBudgetScores(plans.map((plan) => ({ planId: plan.planId, amount: plan.amount }))),
     [plans],
   )
-  const sortedPlans = useMemo(() => sortPlansByKey(plans, sortKey), [plans, sortKey])
+  const sortablePlans = useMemo(
+    () =>
+      plans.map((plan) => ({
+        ...plan,
+        categoryName: categoriesById[plan.categoryId]?.name ?? 'Unknown category',
+      })),
+    [plans, categoriesById],
+  )
+  const sortedPlans = useMemo(
+    () => sortPlansByKey(sortablePlans, sortKey),
+    [sortablePlans, sortKey],
+  )
 
   return (
     <div className="dashboard-status-panel">
@@ -45,11 +57,13 @@ export function SpendPlanPanel({
             {sortedPlans.map((plan) => {
               const score = scores.get(plan.planId) ?? 1
 
+              const categoryColor = categoriesById[plan.categoryId]?.color ?? FALLBACK_CATEGORY_COLOR
+
               return (
                 <li className="dashboard-entry-item" key={plan.planId}>
                   <span
                     className="dashboard-entry-ribbon"
-                    style={{ backgroundColor: getCategoryColor(plan.type, categoryColorByType) }}
+                    style={{ backgroundColor: categoryColor }}
                     aria-hidden="true"
                   />
                   <div className="dashboard-entry-row">
@@ -68,7 +82,7 @@ export function SpendPlanPanel({
                         </span>
                       </div>
                       <p className="dashboard-entry-meta">
-                        {plan.type} | Amount: {plan.amount} | Qty: {plan.quantity}
+                        {plan.categoryName} | Amount: {plan.amount} | Qty: {plan.quantity}
                         {plan.dayOfDeduction !== undefined
                           ? ` | Due on ${plan.dayOfDeduction}`
                           : ''}

@@ -38,6 +38,7 @@ export async function syncCloudTokensFromLocal(uid: string, email: string): Prom
 
   const refreshedFamilies = await cloudLinkedFamilies()
   const persons = await appDb.persons.toArray()
+  const categories = await appDb.categories.toArray()
   const spendPlans = await appDb.spendPlans.toArray()
 
   await pushSharedFamilyData(
@@ -46,6 +47,7 @@ export async function syncCloudTokensFromLocal(uid: string, email: string): Prom
     refreshedFamilies.map((family) => ({
       family,
       persons: persons.filter((person) => person.familyId === family.id),
+      categories: categories.filter((category) => category.familyId === family.id),
       spendPlans: spendPlans.filter((plan) => plan.familyId === family.id),
     })),
   )

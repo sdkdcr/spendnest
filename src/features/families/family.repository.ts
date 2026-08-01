@@ -64,9 +64,11 @@ export async function deleteFamily(familyId: number): Promise<void> {
     'rw',
     appDb.families,
     appDb.persons,
+    appDb.categories,
     appDb.spendPlans,
     async () => {
       await appDb.spendPlans.where('familyId').equals(familyId).delete()
+      await appDb.categories.where('familyId').equals(familyId).delete()
       await appDb.persons.where('familyId').equals(familyId).delete()
       await appDb.families.delete(familyId)
     },

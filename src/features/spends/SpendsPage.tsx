@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react'
-import type { SpendPlan } from '../../shared/domain/types'
+import type { Category, SpendPlan } from '../../shared/domain/types'
 import { useAppStore } from '../../shared/state/useAppStore'
 import { Modal } from '../../shared/ui/Modal'
-import { buildCategoryColorMap } from '../dashboard/category-colors'
-import { DEFAULT_SPEND_CATEGORIES } from './spend-categories'
+import { useFamilyCategories } from '../settings/useFamilyCategories'
 import { SpendPlanForm } from './SpendPlanForm'
 import { SpendPlanList } from './SpendPlanList'
 import type { SpendPlanDraft } from './spend-plan.repository'
@@ -14,7 +13,7 @@ import './spends.css'
 function toDraft(plan: SpendPlan): SpendPlanDraft {
   return {
     personId: plan.personId,
-    type: plan.type,
+    categoryId: plan.categoryId,
     name: plan.name,
     frequency: plan.frequency,
     baseBudget: plan.baseBudget,
@@ -29,6 +28,7 @@ function toDraft(plan: SpendPlan): SpendPlanDraft {
 export function SpendsPage() {
   const selectedFamilyId = useAppStore((state) => state.selectedFamilyId)
   const familyPersons = useFamilyPersons(selectedFamilyId)
+  const { categories } = useFamilyCategories(selectedFamilyId)
   const {
     spendPlans,
     isLoading,
@@ -42,31 +42,36 @@ export function SpendsPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [groupBy, setGroupBy] = useState<'none' | 'category' | 'frequency'>('none')
 
+  const categoriesById = useMemo(() => {
+    return categories.reduce<Record<number, Category>>((acc, category) => {
+      if (category.id !== undefined) {
+        acc[category.id] = category
+      }
+
+      return acc
+    }, {})
+  }, [categories])
+
   const groupedPlans = useMemo(() => {
     if (groupBy === 'none') {
       return [{ key: 'all', label: null, plans: spendPlans }]
     }
     const groups = new Map<string, SpendPlan[]>()
     for (const plan of spendPlans) {
-      const key = groupBy === 'category' ? plan.type : plan.frequency
+      const key =
+        groupBy === 'category' ? String(plan.categoryId) : plan.frequency
       const existing = groups.get(key)
       if (existing) existing.push(plan)
       else groups.set(key, [plan])
     }
     return Array.from(groups.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, plans]) => ({ key, label: key, plans }))
-  }, [spendPlans, groupBy])
-
-  const knownTypes = useMemo(() => {
-    const custom = spendPlans.map((p) => p.type).filter(Boolean)
-    return Array.from(new Set([...DEFAULT_SPEND_CATEGORIES, ...custom]))
-  }, [spendPlans])
-
-  const categoryColorByType = useMemo(
-    () => buildCategoryColorMap(knownTypes),
-    [knownTypes],
-  )
+      .map(([key, plans]) => ({
+        key,
+        label: groupBy === 'category' ? categoriesById[Number(key)]?.name ?? 'Unknown category' : key,
+        plans,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [spendPlans, groupBy, categoriesById])
 
   const personNamesById = useMemo(() => {
     return familyPersons.reduce<Record<number, string>>((acc, person) => {
@@ -168,7 +173,7 @@ export function SpendsPage() {
                 submitLabel="Add Plan"
                 hideTitle
                 persons={familyPersons}
-                knownTypes={knownTypes}
+                categories={categories}
                 onSubmit={handleCreatePlan}
                 onCancel={() => {
                   setIsCreateModalOpen(false)
@@ -190,7 +195,7 @@ export function SpendsPage() {
                 submitLabel="Save Changes"
                 hideTitle
                 persons={familyPersons}
-                knownTypes={knownTypes}
+                categories={categories}
                 initialDraft={toDraft(editingPlan)}
                 onSubmit={handleUpdatePlan}
                 onCancel={() => {
@@ -214,7 +219,7 @@ export function SpendsPage() {
                   <SpendPlanList
                     spendPlans={plans}
                     personNamesById={personNamesById}
-                    categoryColorByType={categoryColorByType}
+                    categoriesById={categoriesById}
                     onEdit={(plan) => {
                       if (plan.id !== undefined) setEditingPlanId(plan.id)
                     }}

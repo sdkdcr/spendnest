@@ -1,10 +1,22 @@
+import { useMemo } from 'react'
 import { resolveTheme } from '../theme/theme.runtime'
 import type { ThemeMode } from '../theme/theme.types'
 import { useAppStore } from '../../shared/state/useAppStore'
+import { useFamilies } from '../families/useFamilies'
 import { BackupPanel } from './BackupPanel'
+import { CategoryPanel } from './CategoryPanel'
 import './settings.css'
 
 export function SettingsPage() {
+  const { families } = useFamilies()
+  const selectedFamilyId = useAppStore((state) => state.selectedFamilyId)
+  const selectedFamilyName = useMemo(() => {
+    if (selectedFamilyId === null) {
+      return null
+    }
+
+    return families.find((family) => family.id === selectedFamilyId)?.name ?? null
+  }, [families, selectedFamilyId])
   const selectedMonthKey = useAppStore((state) => state.selectedMonthKey)
   const setSelectedMonthKey = useAppStore((state) => state.setSelectedMonthKey)
   const themeMode = useAppStore((state) => state.themeMode)
@@ -56,6 +68,8 @@ export function SettingsPage() {
           }}
         />
       </div>
+
+      <CategoryPanel familyId={selectedFamilyId} familyName={selectedFamilyName} />
 
       <div className="settings-auth-panel">
         <h3>Cloud Sync</h3>
