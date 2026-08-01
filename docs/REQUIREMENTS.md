@@ -33,13 +33,12 @@ Primary goals:
 ## 3. Scope
 ### 3.1 In Scope (MVP)
 - Family and person management.
-- Spend template creation and edit.
-- Monthly spend instances generated from templates.
-- Status tracking per month: `Spent`, `Not Yet`, `Skip`.
-- EMI auto-marking logic by deduction day.
-- Budget breakdown bar chart (Budget / Spent / Pending) merged with monthly total.
+- Spend plan creation and edit, including step-up/step-down amount history.
+- Monthly spend view computed live from plans — no per-month persistence.
+- Budget stat card and bar chart for the selected month's total resolved budget.
+- Budget projection graph across past/future months.
 - Spend card budget impact score (1–10 relative to filtered entries) with color indicator.
-- Spend card sort controls (Cost ↓, Cost ↑, Category, Pending First).
+- Spend card sort controls (Cost ↓, Cost ↑, Category).
 - Pie chart by spend category/type.
 - Theming: `Light`, `Dark`, and `Device` preference mode.
 - Responsive layouts for phone and desktop browser.
@@ -59,48 +58,70 @@ Primary goals:
 - A spend must belong to a family.
 - A spend may optionally be tagged to one person in that family.
 
-### 4.2 Spend Definition (Template)
-Each spend template supports:
+### 4.2 Spend Plan (formerly "Template")
+Each spend plan supports:
 - `type` (Insurance, Transport, Utility, etc.)
 - `name`
 - `frequency` (`Monthly`, `Quarterly`, `Annually`, `AdHoc`)
-- `cost`
+- `baseBudget` — the plan's starting amount.
+- `startMonth` (`YYYY-MM`) — cycle anchor for frequency eligibility.
+- `endDate` (`YYYY-MM`, optional) — last month the plan is active. Generic to all frequencies (supersedes the EMI-only `emiEndMonth`).
+- `dayOfDeduction` (1–31, optional) — day of month the amount is expected/auto-marked as deducted. Generic to all frequencies (supersedes `deductionDayOfMonth`, no longer EMI-only).
 - `quantity` (free text, e.g., `5 Liters`, `10 Stocks`)
-- optional EMI configuration:
-  - `emiAmount`
-  - `deductionDayOfMonth` (1-31)
+- `steps` — an array of step-up/step-down changes (see 4.3). This replaces per-month cost editing as the single mechanism for any amount change, permanent or one-off.
 
-### 4.3 Monthly Spend Instance
-- Spends are tracked by selected month (YYYY-MM).
-- On opening a month, eligible templates are carried forward into monthly instances.
-- Frequency eligibility rule:
-  - `Monthly`: eligible for every month on/after template `createdAt` month.
-  - `AdHoc`: eligible for every month on/after template `createdAt` month.
-  - `Quarterly`: eligible when elapsed months from template `createdAt` month is divisible by 3.
-  - `Annually`: eligible when elapsed months from template `createdAt` month is divisible by 12.
-- New monthly instance initializes usage defaults to zero/empty as defined.
-- Cost defaults from previous month when applicable.
-- Monthly instance status supports:
-  - `Spent`
-  - `Not Yet`
-  - `Skip`
+A spend plan does **not** store a per-month cost. Every month's amount is calculated from `baseBudget` plus `steps` (4.3).
 
-### 4.4 EMI Auto-Status
-- For a spend with EMI config, when current date in selected month is on/after `deductionDayOfMonth`, status should auto-toggle to `Spent` unless user explicitly changed status later.
-- User can still manually override status.
+### 4.3 Step-Up / Step-Down Changes
+Each plan carries a `steps` array capturing every amount change over its lifetime:
+```ts
+type StepChange = {
+  effectiveDate: string; // YYYY-MM or YYYY-MM-DD — the cycle this change takes hold in
+  amount: number;        // the new amount from this cycle onward (or for one cycle, if oneOff)
+  oneOff?: boolean;       // true = applies only to the cycle containing effectiveDate, then reverts
+}
+```
+- **Permanent change** (e.g., rent increases from ₹20,000 to ₹22,000 starting March 2026): add `{ effectiveDate: '2026-03', amount: 22000 }`. Applies from that cycle onward until superseded by a later step.
+- **One-off change** (e.g., a usage-based electricity bill spikes to ₹3,500 one month): add `{ effectiveDate: '2026-06', amount: 3500, oneOff: true }`. Applies to that cycle only; the following cycle resumes whatever the permanent baseline would otherwise be. A variable/usage-based bill is modeled as a `oneOff` step for the actual amount each month it's known, with no permanent step needed.
+- Resolution: to find the amount for a given month, take the latest permanent step with `effectiveDate` on/before that month's cycle (or `baseBudget` if none), then check whether a `oneOff` step targets that exact cycle — if so, use it instead for that month only.
+
+```mermaid
+flowchart TD
+    A[resolveBudgetForMonth&#40;plan, monthKey&#41;] --> B{Is monthKey within<br/>startMonth..endDate<br/>and frequency-eligible?}
+    B -- No --> Z[Not applicable this month]
+    B -- Yes --> C[Find latest permanent step<br/>effectiveDate &le; monthKey]
+    C --> D[baseline = step.amount<br/>or plan.baseBudget if none]
+    D --> E{oneOff step targets<br/>this exact cycle?}
+    E -- Yes --> F[Return oneOff.amount]
+    E -- No --> G[Return baseline]
+```
+
+### 4.4 Monthly Spend View
+- Spends are viewed by selected month (`YYYY-MM`).
+- On opening a month, eligible plans are resolved entirely on-the-fly via `resolveBudgetForMonth` (4.3) — no monthly record is generated or persisted at all.
+- Frequency eligibility rule (unchanged):
+  - `Monthly`: eligible for every month on/after plan `startMonth`.
+  - `AdHoc`: eligible for every month on/after plan `startMonth`.
+  - `Quarterly`: eligible when elapsed months from plan `startMonth` is divisible by 3.
+  - `Annually`: eligible when elapsed months from plan `startMonth` is divisible by 12.
+  - All frequencies stop being eligible after `endDate`, if set.
+- Nothing is persisted per month. There is no `MonthlySpendEntry` table, no status (`Spent`/`Not Yet`/`Skip`), no manual-override flag, and no usage tracking. The entire monthly view — including past months — is computed live from `SpendPlan` + `steps`.
+- `dayOfDeduction` is retained on the plan purely as informational/display metadata (e.g., to show "due on the 5th" or to sort by due date within a month) — it drives no status change, since there is no status to change.
 
 ### 4.5 Dashboard and Reporting
-- Budget Breakdown panel shows Budget, Spent, and Pending totals as stat cards and a grouped bar chart.
-  - Budget = sum of all entry costs; Spent = `Spent` entries only; Pending = `Not Yet` entries only.
-- Category pie chart shows spend distribution for `Spent` entries only.
-- Each spend card displays a budget impact score from 1–10, derived by min-max normalising entry costs within the current filter (family or person). Score 10 = highest cost; score 1 = lowest. Color gradient: yellow (low) → dark red (high).
-- Spend cards can be sorted by: Cost ↓, Cost ↑, Category, Pending First. Default sort is Category.
+- Budget panel shows the total resolved budget for the selected month as a stat card — sum of `resolveBudgetForMonth` across all eligible plans (this naturally includes Quarterly/Annually plans only in their billing month). There is no Spent/Pending breakdown, since actual-vs-planned is no longer tracked.
+- Category pie chart shows resolved-budget distribution by `type` for the selected month.
+- Each spend card displays a budget impact score from 1–10, derived by min-max normalising resolved amounts within the current filter (family or person). Score 10 = highest cost; score 1 = lowest. Color gradient: yellow (low) → dark red (high).
+- Spend cards can be sorted by: Cost ↓, Cost ↑, Category. (`Pending First` is removed — no status to sort by.)
 - All dashboard views respect the active person filter (Entire Family or per-person).
+- **Budget projection graph** (new): a line/bar chart across a range of past and future months, plotting the total resolved budget per month (summing `resolveBudgetForMonth` across all plans for each month in range). Since resolution is a pure function of plan + steps, this requires no stored history — future months simply reflect currently known steps, and past months reflect steps that were in effect at the time.
 
 ### 4.6 Backup and Restore
 - User can export all app data to file.
 - User can import backup file to restore data.
 - Validation should reject malformed backups with clear error messaging.
+- Export/import is table-to-JSON and JSON-to-table for each of `families`, `persons`, `spendPlans` — `steps` needs no special handling since it's already a plain JSON array embedded on each `spendPlans` record. See `docs/DB_SCHEMA.md` section 6 for the exact payload shape and validation approach.
+- Backup files from the previous 4-table schema (`spendTemplates` + `monthlySpendEntries`) are detected by `backupVersion` and either rejected with a clear message or routed through the one-time migration transform (`docs/DB_SCHEMA.md` section 5) before import.
 
 ### 4.7 Authentication and Multi-Device Sync
 - User can sign in with Google account.
@@ -108,8 +129,40 @@ Each spend template supports:
 - Data written on one device should be available on another signed-in device after sync.
 - IndexedDB remains the local source for offline UX; Firestore is the cloud source for cross-device continuity.
 - Sync should be resilient to temporary offline conditions and retry when connectivity returns.
-- On first sign-in on a new device, app should pull the latest cloud data before allowing conflicting edits.
-- Basic conflict policy for MVP: last-write-wins at record level using `updatedAt` timestamps.
+- Basic conflict policy for record merges: last-write-wins at record level using `updatedAt` timestamps (unchanged — see 4.7.2 for how this interacts with the new launch-time check).
+
+#### 4.7.1 Launch-Time Sync Check (new)
+Replaces silent, opt-in, push-only auto-sync as the primary sync trigger. A single family-level watermark decides whether to prompt the user on launch; the actual pull/push, once triggered, still uses the existing per-record `updatedAt` last-write-wins merge (4.7) — this feature only changes *when* sync happens and *what the user is told*, not how records are merged.
+
+- **`lastModifiedAt` token**: a single timestamp per family, stored as a field on the `families` Dexie table (not a separate `localStorage` key), and mirrored as a field on the Firestore family document. It is bumped to the current time on every local write to any table scoped to that family (`persons`, `spendPlans`), inside the same transaction as the write — this keeps it consistent with actual data changes even if a write fails/rolls back.
+- **On app launch/refresh**, after auth resolves:
+  1. Fetch the cloud family doc and read its `lastModifiedAt`.
+  2. Compare with the local `families.lastModifiedAt`.
+  3. If local `lastModifiedAt` is unset (first launch on a new device, or upgrading from before this field existed): treat as "no local changes" and auto-pull from cloud if the cloud has data — no prompt. This matches the never-implemented intent already in this section: pull latest before allowing edits on a new device.
+  4. Otherwise, if the two tokens differ (cloud newer, local newer, or both diverged since last sync), show the sync banner (4.7.2). If they match, do nothing — already in sync.
+- This check runs once per launch/refresh, not on an interval and not on every write — it replaces the launch-time gap called out in the current implementation (no auto-pull existed before this feature).
+
+```mermaid
+flowchart TD
+    A[App launch/refresh, auth resolved] --> B[Fetch cloud family doc: lastModifiedAt]
+    B --> C{Local families.lastModifiedAt set?}
+    C -- No --> D{Cloud has data?}
+    D -- Yes --> E[Auto-pull, no prompt]
+    D -- No --> F[Nothing to do]
+    C -- Yes --> G{Local == Cloud token?}
+    G -- Yes --> F
+    G -- No --> H[Show sync banner: 4.7.2]
+    H --> I[Discard local & pull]
+    H --> J[Override cloud with local]
+```
+
+#### 4.7.2 Sync Banner
+- Shown whenever the launch-time check (4.7.1) finds the local and cloud tokens differ — the same banner and button set are used regardless of whether it's a genuine two-sided conflict or a trivial one-sided case (e.g. only local changed, or only cloud changed). No separate "just push, no conflict" or "just auto-pull" UI path — one uniform prompt keeps the behavior simple and predictable.
+- Banner offers two actions:
+  1. **Discard local changes & pull from cloud** — overwrite local Dexie tables for this family with cloud data (existing pull path, `sync.pull.ts`), then update local `lastModifiedAt` to match cloud's.
+  2. **Override cloud with local changes** — push local data to Firestore for this family (existing push path, `sync.push.ts`), overwriting the cloud record set, then update cloud's `lastModifiedAt` to match local's.
+- Neither action performs a per-record merge at the family-token level — that granularity is intentionally coarse (all-or-nothing per family for this decision). Per-record `updatedAt` merging (4.7) still applies *within* whichever push/pull path is chosen, e.g. if pulling, individual record conflicts within the cloud dataset are irrelevant since the whole cloud copy replaces local; if pushing, the reverse.
+- The existing manual `Sync now` button and the "Enable auto-sync" toggle (Settings) remain as-is alongside this banner — this feature is additive, not a replacement for those controls.
 
 ### 4.8 Theming
 - App supports three theme modes:
@@ -134,19 +187,39 @@ Each spend template supports:
 
 ### 5.3 Performance
 - Month dashboard should render quickly for small-to-medium personal datasets.
-- Common interactions (toggle status, add spend) should feel immediate.
+- Common interactions (add spend, add a step-up/step-down) should feel immediate.
+- Budget resolution (`resolveBudgetForMonth`) across all plans for a month, and across a projection range of months, should remain fast as `steps` history grows.
 
 ### 5.4 Maintainability
 - Type-safe models and validation.
-- Clear separation of template spends vs monthly instances.
+- Clear separation of plan definition (`SpendPlan` + `steps`) vs computed monthly resolution — no derived data persisted.
 
-## 6. Suggested Data Model (High-Level)
+## 6. Data Model (High-Level)
+Normalized, three-table schema — chosen over collapsing everything into a single JSON blob per family, because per-record Dexie queries (list plans for a family, cascade-delete on family/person removal) and per-record Firestore sync with record-level last-write-wins both depend on it. A single family-blob would force whole-family rewrites on every edit and turn per-record conflict resolution into per-family conflict resolution. Full field-level detail lives in `docs/DB_SCHEMA.md`.
+
 - `families`
 - `persons`
-- `spend_templates`
-- `monthly_spend_entries`
-- `emi_rules` (or embedded under template)
+- `spend_plans` (formerly `spend_templates`) — includes embedded `steps` array (4.3) as a plain JSON field on the row, not a separate table; no standalone `emi_rules` table, as `dayOfDeduction`/`endDate` are now generic plan fields.
 - `app_settings`
+
+There is no monthly-entry table at all. The monthly view (current, past, or projected) is always computed live via `resolveBudgetForMonth(plan, monthKey)` — nothing per-month is persisted.
+
+Each table converts cleanly to/from plain JSON for backup export/import and Firestore sync payloads (`docs/DB_SCHEMA.md` section 6) — `steps` round-trips as a nested JSON array with no extra serialization step, since Dexie already stores it natively and Firestore/JSON.stringify handle plain arrays directly.
+
+```mermaid
+erDiagram
+    FAMILY ||--o{ PERSON : has
+    FAMILY ||--o{ SPEND_PLAN : owns
+    PERSON |o--o{ SPEND_PLAN : "optionally tagged to"
+    SPEND_PLAN {
+        string frequency
+        number baseBudget
+        string startMonth
+        string endDate
+        number dayOfDeduction
+        json steps
+    }
+```
 
 ## 7. Implementation Plan
 ### Phase 1: Foundation
@@ -155,12 +228,11 @@ Each spend template supports:
 
 ### Phase 2: Core Budget Flow
 - Family/person CRUD.
-- Spend template CRUD.
-- Monthly generation and status toggles.
-- EMI auto-toggle rule.
+- Spend plan CRUD, including step-up/step-down editing.
+- `resolveBudgetForMonth` derivation and monthly view rendering.
 
 ### Phase 3: Insights + Data Safety
-- Monthly total and category pie chart.
+- Monthly total, category pie chart, and budget projection graph.
 - Export/import backup flow.
 
 ### Phase 4: PWA + Deployment
@@ -179,50 +251,67 @@ Each spend template supports:
 - Capacitor packaging for iOS/Android distribution.
 
 ## 8. Acceptance Criteria (MVP)
-- User can create family, persons, and spend templates.
-- Month view auto-populates eligible spends with correct defaults.
-- User can update status (`Spent`/`Not Yet`/`Skip`) quickly.
-- EMI spend can auto-mark as `Spent` after configured day.
-- Dashboard shows monthly total and category pie chart.
+- User can create family, persons, and spend plans.
+- Month view resolves eligible plans into correct budget amounts live, with no manual population step.
+- User can add a step-up/step-down to a plan for a given date and see it reflected from that cycle onward (or for one cycle only, if one-off).
+- Dashboard shows the selected month's total resolved budget, category pie chart, and a past/future projection graph.
 - App is usable on both mobile and laptop browsers.
 - Data persists locally across reloads and can be exported/imported.
 
 ## 9. Open Decisions
-- Whether skipped spends should appear in totals as zero (default assumed).
 - Conflict behavior when importing backup over existing data (merge vs replace).
 - Firestore collection shape (`per-user` vs `shared-family`) for internal collaboration model.
 - Whether backup import should write to local-only first or propagate immediately to Firestore.
+- Migration path for existing `spend_templates`/`monthly_spend_entries` data into the `spend_plans` step-based model (each existing template's current `cost` becomes its `baseBudget`; each distinct historical per-month `cost` becomes an implicit step; status/usage history is dropped, since it's no longer part of the model) — needs a one-time Dexie migration script, scoped at implementation time.
+- Exact range of past/future months shown by default in the new budget projection graph (4.5).
 
 ## 10. Task Tracker
+
+Implementation checklist for the step-based `spendPlans` redesign (schema, resolution logic, dashboard, sync). Prior shipped-MVP feature history (family/person CRUD, theming, PWA, auth, Cloudflare deploy, etc.) is no longer tracked here — that work is complete and described in the relevant sections above; this tracker exists to sequence what's left. Ordered by dependency: each phase assumes the previous one is done.
+
+### Phase A: Schema migration (blocks everything else)
 | Task | Status |
 | --- | --- |
-| Project foundation: React + TypeScript + routing + state + IndexedDB scaffold | - [x] |
-| Responsive app shell and navigation (mobile-first, desktop-friendly) | - [x] |
-| Family CRUD | - [x] |
-| Person CRUD (linked to family) | - [x] |
-| Spend template CRUD (`type`, `name`, `frequency`, `cost`, `quantity`) | - [x] |
-| Optional spend-to-person tagging | - [x] |
-| Monthly instance generation from templates | - [x] |
-| Frequency rules (`Monthly`, `Quarterly`, `Annually`, `AdHoc`) | - [x] |
-| Monthly status workflow (`Spent`, `Not Yet`, `Skip`) | - [x] |
-| Cost auto-population from previous month | - [x] |
-| EMI fields (`emiAmount`, `deductionDayOfMonth`) | - [x] |
-| EMI auto-toggle to `Spent` after configured day | - [x] |
-| Monthly total expenditure calculation | - [x] |
-| Category/type pie chart visualization | - [x] |
-| Theme system (`Light` / `Dark` / `Device`) with persisted preference | - [x] |
-| Backup export (JSON/CSV) | - [x] |
-| Backup import with validation | - [x] |
-| Offline-ready behavior (PWA shell) | - [x] |
-| Cloudflare Pages deployment setup | - [x] |
-| Firebase project setup (Auth + Firestore) | - [x] |
-| Google Sign-In integration | - [x] |
-| Firestore security rules for internal app usage | - [x] |
-| IndexedDB <-> Firestore sync engine | - [x] |
-| Manual sync controls (`Sync now`, optional auto-sync toggle) | - [x] |
-| Dashboard spend-card editing (`cost`, `quantity`) | - [x] |
-| Dashboard person-level filter with family default scope | - [x] |
-| Consistent category color mapping (chart + spend ribbons) | - [x] |
-| Modal-based add/edit flows (Spends + Dashboard) | - [x] |
-| PWA update prompt (service worker `prompt` mode + in-app refresh banner) | - [x] |
-| Cross-device sync validation (20-30 internal users target) | - [ ] |
+| Add `SpendPlan` type + `StepChange` type to `src/shared/domain/types.ts` (4.2–4.3) | - [ ] |
+| Add `spendPlans` Dexie table (version bump to `3`), drop `spendTemplates`/`monthlySpendEntries` from schema (`docs/DB_SCHEMA.md` §2.3) | - [ ] |
+| Write one-time Dexie `upgrade()` migration: `spendTemplates` + `monthlySpendEntries` history → `spendPlans` + `steps[]` (`docs/DB_SCHEMA.md` §5) | - [ ] |
+| Add `lastModifiedAt` field to `families` table (Dexie + Firestore mirror) (4.7.1) | - [ ] |
+
+### Phase B: Resolution logic
+| Task | Status |
+| --- | --- |
+| Implement `resolveBudgetForMonth(plan, monthKey)` — baseline + permanent step + one-off override resolution (4.3) | - [ ] |
+| Update frequency eligibility rules for generic `endDate` (replaces `emiEndMonth`) (4.4) | - [ ] |
+| Remove `monthly-entry.generator.ts` cost carry-forward logic — no longer applicable, nothing materialized per month | - [ ] |
+| Remove status workflow (`Spent`/`Not Yet`/`Skip`), `manuallyUpdatedStatus`, deduction-day auto-toggle, and EMI-only fields (`emiAmount`) | - [ ] |
+
+### Phase C: Plan editing UI
+| Task | Status |
+| --- | --- |
+| Rework spend template CRUD form into `SpendPlan` form (`baseBudget`, `startMonth`, `endDate`, `dayOfDeduction`) | - [ ] |
+| Step-up/step-down editing UI on a plan, including one-off toggle (4.3) | - [ ] |
+| Update spend-to-person tagging and cascade-delete logic for `spendPlans` (family/person delete paths) | - [ ] |
+
+### Phase D: Dashboard rework
+| Task | Status |
+| --- | --- |
+| Replace Budget/Spent/Pending breakdown with single resolved-budget total for selected month (4.5) | - [ ] |
+| Update category pie chart to use resolved amounts instead of `Spent`-status entries (4.5) | - [ ] |
+| Update budget impact score + sort controls (`Cost ↓`, `Cost ↑`, `Category`) for resolved amounts; remove `Pending First` (4.5) | - [ ] |
+| Build budget projection graph across past/future months (4.5) — resolve default month range (open decision, §9) | - [ ] |
+| Update person/family filter to operate on `spendPlans` instead of `monthlySpendEntries` | - [ ] |
+
+### Phase E: Backup/restore + sync
+| Task | Status |
+| --- | --- |
+| Update `backup.schema.ts`/`backup.service.ts` for `families`/`persons`/`spendPlans` shape, bump `backupVersion` to `2` (`docs/DB_SCHEMA.md` §6) | - [ ] |
+| Handle old (`backupVersion: 1`) backup files: reject or route through Phase A migration transform (4.6) | - [ ] |
+| Launch-time sync token check + auto-pull-if-no-local-changes (4.7.1) | - [ ] |
+| Sync banner with Discard-and-pull / Override-cloud actions (4.7.2) | - [ ] |
+| Update Firestore sync payload shape (`persons`/`spendPlans` sub-collections replace `persons`/`spendTemplates`/`monthlySpendEntries`) | - [ ] |
+
+### Phase F: Validation
+| Task | Status |
+| --- | --- |
+| Cross-device sync validation with the new launch-time banner (20-30 internal users target) | - [ ] |
+| End-to-end check: migrate a real existing dataset (old schema) and verify resolved amounts match prior per-month costs | - [ ] |
