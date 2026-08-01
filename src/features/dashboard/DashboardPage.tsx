@@ -7,6 +7,7 @@ import { useFamilyPersons } from '../spends/useFamilyPersons'
 import { BudgetProjectionChart } from './BudgetProjectionChart'
 import { BudgetTotalCard } from './BudgetTotalCard'
 import { CategoryPieChart } from './CategoryPieChart'
+import { RetirementCorpusCard } from './RetirementCorpusCard'
 import { SpendPlanPanel } from './SpendPlanPanel'
 import { resolvePlansForMonth } from './resolved-plan'
 import { useBudgetProjection } from './useBudgetProjection'
@@ -142,6 +143,15 @@ export function DashboardPage() {
           <div className="dashboard-chart-panel">
             <h3>Category Spend Split</h3>
             <CategoryPieChart data={categoryTotals} />
+          </div>
+
+          <div className="dashboard-chart-panel">
+            <h3>Retirement Corpus</h3>
+            <RetirementCorpusCard
+              categories={categories}
+              plans={spendPlans}
+              currentMonthKey={selectedMonthKey}
+            />
           </div>
 
           <SpendPlanPanel

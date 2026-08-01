@@ -58,6 +58,25 @@ export async function renameCategory(
   requestAutoSync()
 }
 
+export interface RetirementSettings {
+  isRetirementCorpus: boolean
+  retirementCurrentBalance?: number
+  retirementAnnualGrowthRatePercent?: number
+}
+
+export async function updateRetirementSettings(
+  categoryId: number,
+  familyId: number,
+  settings: RetirementSettings,
+): Promise<void> {
+  const timestamp = nowIso()
+  await appDb.transaction('rw', appDb.categories, appDb.families, async () => {
+    await appDb.categories.update(categoryId, { ...settings, updatedAt: timestamp })
+    await touchFamilyLastModified(familyId, timestamp)
+  })
+  requestAutoSync()
+}
+
 export async function deleteCategory(
   categoryId: number,
   familyId: number,

@@ -6,6 +6,8 @@ import {
   deleteCategory,
   listCategoriesByFamily,
   renameCategory,
+  updateRetirementSettings,
+  type RetirementSettings,
 } from './category.repository'
 
 export interface CategoryWithUsage extends Category {
@@ -92,6 +94,26 @@ export function useCategoryManager(familyId: number | null) {
     }
   }
 
+  async function handleUpdateRetirementSettings(
+    categoryId: number,
+    settings: RetirementSettings,
+  ): Promise<boolean> {
+    if (familyId === null) {
+      return false
+    }
+
+    setErrorMessage(null)
+
+    try {
+      await updateRetirementSettings(categoryId, familyId, settings)
+      await refreshCategories()
+      return true
+    } catch {
+      setErrorMessage('Unable to update retirement settings right now.')
+      return false
+    }
+  }
+
   async function handleDeleteCategory(categoryId: number): Promise<boolean> {
     if (familyId === null) {
       return false
@@ -115,6 +137,7 @@ export function useCategoryManager(familyId: number | null) {
     errorMessage,
     createCategory: handleCreateCategory,
     renameCategory: handleRenameCategory,
+    updateRetirementSettings: handleUpdateRetirementSettings,
     deleteCategory: handleDeleteCategory,
     refreshCategories,
   }

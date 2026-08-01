@@ -24,6 +24,12 @@ Flow:
 3. Add a Web App in Firebase project settings.
 4. Copy the Firebase web config values.
 
+Note the **project ID** shown under Project Settings (e.g. `spendnest-134b6`) —
+Firebase appends a random suffix if the plain display name is already taken.
+The CLI's `--project` flag and `.firebaserc` need this ID, not the display
+name; using the display name where the ID is expected fails with a
+permissions/403 error even for an account that genuinely has access.
+
 ## 3. Enable Authentication (Google)
 
 1. Go to `Authentication -> Sign-in method`.
@@ -75,9 +81,11 @@ Collections:
 ```
 families/{cloudFamilyId}                         ← family document
 families/{cloudFamilyId}/persons/{personId}
-families/{cloudFamilyId}/spendTemplates/{templateId}
-families/{cloudFamilyId}/monthlySpendEntries/{entryId}
+families/{cloudFamilyId}/categories/{categoryId}
+families/{cloudFamilyId}/spendPlans/{planId}
 ```
+
+Note: this replaces the original `spendTemplates`/`monthlySpendEntries` subcollections from the pre-`SpendPlan` schema (see `docs/DB_SCHEMA.md` sections 2.3/2.4/5). **Any previously deployed security rules must be updated to match** — rules granting access only to the old subcollection names will silently reject writes to `categories`/`spendPlans` with "Missing or insufficient permissions," since Firestore denies by default on any path a rule doesn't explicitly allow.
 
 `cloudFamilyId` format: `family_{ownerUid}_{localFamilyId}` — generated on first push, stored locally in IndexedDB.
 
@@ -102,6 +110,30 @@ ID strategy:
 
 For shared families, authorize access when the signed-in email is present in the
 family document's `memberEmails` array.
+
+Rules are checked into the repo at `firestore.rules` (source of truth — do not
+edit rules ad hoc in the Firebase Console without also updating this file, or
+the two will drift the way the old `spendTemplates`/`monthlySpendEntries`-only
+rules silently drifted from the app's later `categories`/`spendPlans` schema).
+`firebase.json` points the Firebase CLI at it; `.firebaserc` pins the default
+project to `spendnest-134b6` (the project's actual ID — note this differs from
+the display name `spendnest` used elsewhere in this doc; using the display name
+in place of the ID with `--project` will fail with a permissions/403 error even
+for an account that has real access to the project).
+
+Deploy after any change to `firestore.rules`:
+
+```bash
+npm install -g firebase-tools   # one-time, if not already installed
+firebase login                  # one-time, or firebase login:ci for a token usable from a non-interactive shell
+firebase deploy --only firestore:rules
+# .firebaserc supplies the project, so --project is no longer required day-to-day;
+# only pass it explicitly (with the project ID, not the display name) to target a
+# different project, e.g.:
+#   firebase deploy --only firestore:rules --project spendnest-134b6 --token "$PERSONAL_FIREBASE_TOKEN"
+```
+
+Current rules (`firestore.rules`):
 
 ```txt
 rules_version = '2';
@@ -137,10 +169,10 @@ service cloud.firestore {
       match /persons/{personId} {
         allow read, write: if isSignedIn() && isFamilyMemberDoc(familyId);
       }
-      match /spendTemplates/{templateId} {
+      match /categories/{categoryId} {
         allow read, write: if isSignedIn() && isFamilyMemberDoc(familyId);
       }
-      match /monthlySpendEntries/{entryId} {
+      match /spendPlans/{planId} {
         allow read, write: if isSignedIn() && isFamilyMemberDoc(familyId);
       }
     }
@@ -153,6 +185,8 @@ Notes:
 
 - Save emails in `memberEmails` in the same casing as auth provider returns (or consistently lowercase in both app + rules).
 - Owner should also be included in `memberEmails`.
+- These rules must be kept in sync with `FamilySubCollectionName` in `src/shared/firebase/firestore.ts` — whenever a subcollection is renamed or added there (as happened when `spendTemplates`/`monthlySpendEntries` became `spendPlans`, and when `categories` was introduced), `firestore.rules` needs the matching update, deployed via the command above, or writes to the new/renamed path will fail with "Missing or insufficient permissions" even though the app code is otherwise correct.
+- If you have already deployed the old rules from the Firebase Console UI, running the deploy command above will overwrite them with this file's contents — that's the fix for the current permissions error, since the console version only allows `spendTemplates`/`monthlySpendEntries`.
 
 ## 8. Sync Strategy (MVP)
 

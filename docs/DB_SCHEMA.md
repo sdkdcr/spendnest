@@ -59,8 +59,13 @@ Fields:
 - `familyId` (`number`, FK -> `families.id`)
 - `name` (`string`, required)
 - `color` (`string`, required, hex value) — assigned once at creation from the fixed palette (`docs/REQUIREMENTS.md` section 4.5), and stays fixed regardless of what other categories are added, renamed, or deleted. Replaces the previous behavior of deriving color from a category's alphabetical position among currently-in-use types, which reshuffled every category's color whenever the distinct-type set changed.
+- `isRetirementCorpus` (`boolean`, optional, defaults to `false`) — tags this category as contributing to the Retirement Corpus projection (`docs/REQUIREMENTS.md` section 4.9). Purely a flag; unrelated to any spend-plan field.
+- `retirementCurrentBalance` (`number`, optional) — user-entered current accumulated balance for this category, as of today. Only meaningful when `isRetirementCorpus` is `true`; ignored otherwise.
+- `retirementAnnualGrowthRatePercent` (`number`, optional) — user-entered assumed annual growth rate (e.g. `8` for 8%) applied when projecting this category's contribution to future years. Only meaningful when `isRetirementCorpus` is `true`.
 - `createdAt` (`string`, ISO timestamp)
 - `updatedAt` (`string`, ISO timestamp)
+
+None of the three retirement fields are part of the Dexie index string — they're plain fields read as part of the whole `categories` row, same as `color`. No schema version bump is required to add them (additive optional fields on an existing, non-indexed part of the record).
 
 Dexie store:
 ```text
@@ -160,7 +165,18 @@ Every table already round-trips to and from plain JSON for backup/restore — th
     "families": [{ "id": 1, "name": "Doe Family", "createdAt": "...", "updatedAt": "..." }],
     "persons": [{ "id": 1, "familyId": 1, "name": "Jane", "createdAt": "...", "updatedAt": "..." }],
     "categories": [
-      { "id": 1, "familyId": 1, "name": "Utility", "color": "#4E79A7", "createdAt": "...", "updatedAt": "..." }
+      { "id": 1, "familyId": 1, "name": "Utility", "color": "#4E79A7", "createdAt": "...", "updatedAt": "..." },
+      {
+        "id": 2,
+        "familyId": 1,
+        "name": "Investments",
+        "color": "#59A14F",
+        "isRetirementCorpus": true,
+        "retirementCurrentBalance": 1500000,
+        "retirementAnnualGrowthRatePercent": 10,
+        "createdAt": "...",
+        "updatedAt": "..."
+      }
     ],
     "spendPlans": [
       {

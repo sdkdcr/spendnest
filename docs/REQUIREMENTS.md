@@ -38,6 +38,7 @@ Primary goals:
 - Monthly spend view computed live from plans — no per-month persistence.
 - Budget stat card and bar chart for the selected month's total resolved budget.
 - Budget projection graph across past/future months.
+- Retirement Corpus: per-category opt-in tagging with current balance + growth rate, and a +5/+10/+15/+20-year projection graphic on the dashboard.
 - Spend card budget impact score (1–10 relative to filtered entries) with color indicator.
 - Spend card sort controls (Cost ↓, Cost ↑, Category).
 - Pie chart by spend category.
@@ -181,6 +182,44 @@ flowchart TD
 - Default mode should be `Device` when available; otherwise fall back to `Dark`.
 - User can switch theme mode in settings.
 - Theme choice should persist locally across app restarts.
+
+### 4.9 Retirement Corpus
+Any category can be tagged, in Settings, as contributing to the family's Retirement Corpus. This is on-the-fly projection math, not a new persisted monthly/entry concept — nothing per-month is materialized, matching the rest of the app's computed-not-stored approach (4.4).
+
+**Category fields (Settings, only shown when a category is tagged):**
+- `isRetirementCorpus` (boolean) — toggles whether this category counts toward the corpus.
+- `retirementCurrentBalance` — the user manually enters today's actual accumulated balance for this category (e.g. current PF/mutual fund value). This is a real input, not derived — the app has no way to know an actual account balance.
+- `retirementAnnualGrowthRatePercent` — the user manually enters an assumed annual growth rate for this category (e.g. `8` for PF, `12` for equity mutual funds). Set per category, not globally, since different retirement vehicles grow at different assumed rates.
+
+**Dashboard graphic:**
+- A "Retirement Corpus" card shows the current total: the sum of `retirementCurrentBalance` across all tagged categories.
+- Four buttons — **+5 / +10 / +15 / +20 years** — each recompute and display a projected total for that many years from now.
+- Each tagged category's **monthly contribution** for projection purposes is its current resolved amount — `resolveBudgetForMonth` summed across that category's spend plans for the current month — held flat for every future year. The projection does not attempt to forecast future step-ups/step-downs; it assumes today's contribution rate continues unchanged, since forecasting plan changes decades out isn't something the app can know.
+- Projection formula, applied **per category** then summed:
+  ```
+  balance = category.retirementCurrentBalance
+  monthly = sum of resolveBudgetForMonth(plan, currentMonthKey) for plans in this category
+  rate = category.retirementAnnualGrowthRatePercent / 100
+
+  repeat N times (once per projected year):
+    balance = (balance + 12 × monthly) × (1 + rate)
+
+  projectedTotal = sum of balance across all tagged categories
+  ```
+  This is a simple annual-compounding loop — contributions for the year are added first, then a year of growth is applied to the new balance — rather than a continuous/monthly-compounding annuity formula, since this is a rough planning aid, not a financial instrument, and a simple year-by-year loop is easy to verify by hand.
+- A category with no plans currently assigned to it (monthly contribution of `0`) still projects correctly — it simply grows `retirementCurrentBalance` at its own rate with no further contributions.
+
+```mermaid
+flowchart TD
+    A[User clicks +N years] --> B[For each category tagged isRetirementCorpus]
+    B --> C[monthly = sum resolveBudgetForMonth for its plans, current month]
+    C --> D[balance = category.retirementCurrentBalance]
+    D --> E{Repeat N times}
+    E --> F["balance = (balance + 12*monthly) * (1 + rate/100)"]
+    F --> E
+    E -- done --> G[Sum every category's final balance]
+    G --> H[Display projected corpus total]
+```
 
 ## 5. Non-Functional Requirements
 ### 5.1 Responsiveness
@@ -335,12 +374,23 @@ Implementation checklist for the step-based `spendPlans` redesign (schema, resol
 ### Phase G: Category management (4.2.1)
 | Task | Status |
 | --- | --- |
-| Add `Category` type to `src/shared/domain/types.ts`; add `categories` Dexie table (version bump to `4`) | - [ ] |
-| Write one-time Dexie `upgrade()` migration: distinct `spendPlans.type` strings per family → `categories` rows with auto-assigned fixed color; rewrite `spendPlans.type` → `categoryId` (`docs/DB_SCHEMA.md` §5) | - [ ] |
-| Category repository: create/rename/delete, with delete blocked while any `spendPlans` row references the category | - [ ] |
-| Settings UI: category list with add/rename/delete, in-use plan count shown per category | - [ ] |
-| Update `SpendPlanForm`/`SpendPlanIdentityFields` to select `categoryId` from the managed list instead of free-text `type` input | - [ ] |
-| Update dashboard (pie chart, sort, budget score, plan list ribbons) and spends list to resolve category name/color via `categoryId` lookup instead of `type` string | - [ ] |
-| Replace positional `buildCategoryColorMap` with each category's stored fixed `color` | - [ ] |
-| Update `backup.schema.ts`/`backup.service.ts` for `categories` table, bump `backupVersion` to `3`; route older backups through the migration transform | - [ ] |
-| Update Firestore sync payload shape to include a `categories` sub-collection | - [ ] |
+| Add `Category` type to `src/shared/domain/types.ts`; add `categories` Dexie table (version bump to `4`) | - [x] |
+| Write one-time Dexie `upgrade()` migration: distinct `spendPlans.type` strings per family → `categories` rows with auto-assigned fixed color; rewrite `spendPlans.type` → `categoryId` (`docs/DB_SCHEMA.md` §5) | - [x] |
+| Category repository: create/rename/delete, with delete blocked while any `spendPlans` row references the category | - [x] |
+| Settings UI: category list with add/rename/delete, in-use plan count shown per category | - [x] |
+| Update `SpendPlanForm`/`SpendPlanIdentityFields` to select `categoryId` from the managed list instead of free-text `type` input | - [x] |
+| Update dashboard (pie chart, sort, budget score, plan list ribbons) and spends list to resolve category name/color via `categoryId` lookup instead of `type` string | - [x] |
+| Replace positional `buildCategoryColorMap` with each category's stored fixed `color` | - [x] |
+| Update `backup.schema.ts`/`backup.service.ts` for `categories` table, bump `backupVersion` to `3`; route older backups through the migration transform | - [x] |
+| Update Firestore sync payload shape to include a `categories` sub-collection | - [x] |
+
+### Phase H: Retirement Corpus (4.9)
+| Task | Status |
+| --- | --- |
+| Add `isRetirementCorpus`, `retirementCurrentBalance`, `retirementAnnualGrowthRatePercent` optional fields to `Category` type (no Dexie version bump needed — additive, non-indexed fields) | - [ ] |
+| Category repository: `updateRetirementSettings(categoryId, familyId, settings)` to persist the three new fields | - [ ] |
+| Settings UI: toggle + current-balance + growth-rate inputs per category, shown only when tagged | - [ ] |
+| New `retirement-corpus.ts` (or similar) pure function: given tagged categories + their plans + a year count, compute the projected total per the formula in 4.9 | - [ ] |
+| Dashboard: new "Retirement Corpus" card/graphic with current total and +5/+10/+15/+20-year buttons | - [ ] |
+| Update `backup.schema.ts` Zod category schema for the three new optional fields; no `backupVersion` bump needed (additive/optional) | - [ ] |
+| Confirm Firestore category payload passes the new optional fields through unchanged (already a plain per-record sync, no explicit field allowlist expected — verify) | - [ ] |

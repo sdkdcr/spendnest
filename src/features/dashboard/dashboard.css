@@ -235,3 +235,43 @@
     grid-template-columns: 1fr;
   }
 }
+
+.dashboard-retirement-card {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.dashboard-retirement-year-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.dashboard-retirement-breakdown {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.dashboard-retirement-breakdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dashboard-retirement-swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.dashboard-retirement-breakdown-name {
+  flex: 1;
+}
+
+.dashboard-retirement-breakdown-amount {
+  font-weight: 700;
+}

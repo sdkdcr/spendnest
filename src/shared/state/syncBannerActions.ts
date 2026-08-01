@@ -52,7 +52,6 @@ export async function handleDiscardLocalAndPullFromCloud(
     set({
       syncStatus: 'success',
       syncMessage: 'Local data replaced with cloud data.',
-      isSyncBannerVisible: false,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Pull failed. Please retry.'
@@ -74,7 +73,6 @@ export async function handleOverrideCloudWithLocal(set: SetFn, get: GetFn): Prom
     set({
       syncStatus: 'success',
       syncMessage: 'Cloud data replaced with local data.',
-      isSyncBannerVisible: false,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Push failed. Please retry.'

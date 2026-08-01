@@ -25,6 +25,9 @@ const categorySchema = z.object({
   familyId: z.number().int().positive(),
   name: z.string().min(1),
   color: z.string().min(1),
+  isRetirementCorpus: z.boolean().optional(),
+  retirementCurrentBalance: z.number().optional(),
+  retirementAnnualGrowthRatePercent: z.number().optional(),
   createdAt: timestampSchema,
   updatedAt: timestampSchema,
 })

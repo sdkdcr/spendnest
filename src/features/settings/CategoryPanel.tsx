@@ -16,6 +16,7 @@ export function CategoryPanel({ familyId, familyName }: CategoryPanelProps) {
     errorMessage,
     createCategory,
     renameCategory,
+    updateRetirementSettings,
     deleteCategory,
   } = useCategoryManager(familyId)
 
@@ -116,6 +117,7 @@ export function CategoryPanel({ familyId, familyName }: CategoryPanelProps) {
         <CategoryList
           categories={categories}
           onRename={renameCategory}
+          onUpdateRetirementSettings={updateRetirementSettings}
           onDelete={(categoryId) => {
             void handleDeleteCategory(categoryId)
           }}
